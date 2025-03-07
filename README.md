@@ -25,8 +25,8 @@ VoidLink is a **lightweight, encrypted chat and file transfer framework** design
 ### Setup
 ```sh
 # Clone the repository
-git clone https://github.com/TheVoidMonarch/VoidLink-Server.git
-cd VoidLink-Server
+git clone https://github.com/TheVoidMonarch/void-x-link.git
+cd void-x-link
 
 # Install dependencies
 pip install -r requirements.txt
