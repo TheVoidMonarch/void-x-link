@@ -1,6 +1,6 @@
 {
     "server_host": "0.0.0.0",
-    "server_port": 5000,
+    "server_port": 52384,
     "encryption_enabled": true,
     "storage": {
         "local": true,

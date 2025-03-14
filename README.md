@@ -1,80 +1,116 @@
-# void-x-link
+# VoidLink: Secure Terminal-Based Chat and File Transfer Framework
 
-# Server
+VoidLink is a lightweight, secure, and modular chat and file transfer framework designed to run entirely in the terminal. It is built to function in private circles as well as for institutional or organizational intranet deployments. With a focus on simplicity, security, and extensibility, VoidLink provides a self-hosted alternative to commercial chat solutions.
 
-## Overview
-VoidLink is a **lightweight, encrypted chat and file transfer framework** designed for private circles and institutional/organizational intranet deployments. The server-side implementation is modular, allowing for easy customization and extension. The server manages authentication, message encryption, file transfers, and optional cloud storage integration.
+## Core Features
 
-## Features
-- **End-to-End Encryption (E2EE)**: Ensures all communication is secured.
-- **Terminal-Based Chat**: Lightweight, no GUI required for clients.
-- **File Transfer with Encryption**: Securely send files over the network.
-- **Persistent Chat History**: Chat logs are stored both on the server and client-side for seamless multi-device access.
-- **Modular Design**: Customizable server modules for authentication, storage, and more.
-- **Optional API Authentication**: Can integrate with external account databases.
-- **Cloud Storage Integration**: Server admin can choose to store chat logs locally or in a free cloud storage service.
-- **Basic Web UI (Optional)**: For server-side settings and maintenance only.
+- **Lightweight & Terminal-Based**: Minimal dependencies and full CLI support.
+- **Privacy & Security**: End-to-end encrypted chat and file transfers using AES-256.
+- **Modular & Customizable**: Easily extendable server-side functionality.
+- **Self-Hosted & Decentralized**: No reliance on third-party servers.
+- **Seamless Deployment**: Works on LAN, VPN (Tailscale/ZeroTier), or public networks with proper configuration.
 
-## Installation
+## System Architecture
+
+VoidLink consists of two main components:
+
+### 1. Server-Side (VoidLink-Server)
+
+Handles authentication, message encryption, storage, and modular functionality.
+
+```
+VoidLink/
+│── server.py                 # Main server script
+│── encryption.py             # Handles encryption (AES-256)
+│── authentication.py         # Manages user authentication
+│── storage.py                # Handles chat persistence
+│── file_transfer.py          # Secure file transfer module
+│── config.json               # Server configuration file
+│── database/                 # Stores user and chat data (encrypted)
+│   │── users.json            # User database
+│   │── chat_log.json         # Chat history
+│   │── chat_history/         # User-specific chat history
+│   │── files/                # Stored files
+│   └── encryption_key.json   # Encryption key (protected)
+│── requirements.txt          # Dependencies
+└── README.md                 # Documentation
+```
+
+### 2. Client-Side (VoidLink-Client)
+
+Provides a terminal-based interface for chat and file transfer.
+
+```
+VoidLink-Client/
+│── client.py                 # Main client script
+│── client_config.json        # Client-side configuration
+│── chat_history/             # Stores local chat history
+│── downloads/                # Downloaded files
+└── requirements.txt          # Dependencies
+```
+
+## Installation & Setup
+
 ### Prerequisites
-- Python 3.x
-- `pip` (Python package manager)
-- OpenSSL (for encryption)
-- A Linux or Windows server
 
-### Setup
-```sh
-# Clone the repository
-git clone https://github.com/TheVoidMonarch/void-x-link.git
-cd void-x-link
+- Python 3.8+
+- Dependencies from requirements.txt
 
-# Install dependencies
-pip install -r requirements.txt
+### Server Setup
 
-# Start the server
-python server.py
+1. Clone the repository:
+   ```
+   git clone https://github.com/your-repo/VoidLink.git
+   cd VoidLink
+   ```
+
+2. Install dependencies:
+   ```
+   python -m venv venv
+   source venv/bin/activate  # (Windows: venv\Scripts\activate)
+   pip install -r requirements.txt
+   ```
+
+3. Start the server:
+   ```
+   python server.py
+   ```
+
+By default, the server listens on 0.0.0.0:52384 (configurable in config.json).
+
+### Client Setup
+
+The client will be available in a separate repository. Follow the instructions in the client repository for setup.
+
+## Security Considerations
+
+- Uses AES-256 encryption for messages and file transfers
+- Passwords are stored using PBKDF2 with SHA-256
+- Server-side encryption key is generated on first run
+- All file transfers are encrypted
+
+## Customization
+
+### Server Configuration
+
+Edit `config.json` to customize server settings:
+
+```json
+{
+    "server_host": "0.0.0.0",
+    "server_port": 52384,
+    "encryption_enabled": true,
+    "storage": {
+        "local": true,
+        "cloud_backup": false
+    }
+}
 ```
-
-## Configuration
-Modify `config.json` to customize:
-- **Server Port**
-- **Encryption Settings**
-- **Storage Options**
-- **API Authentication (Enable/Disable)**
-
-## Running the Server
-```sh
-python server.py
-```
-By default, the server listens on port `5000`. Change this in `config.json` if needed.
-
-## Authentication Options
-- **Local Authentication**: Users create accounts directly on the server.
-- **API Authentication** (Optional): The server can fetch user credentials from an external database.
-
-## Chat Persistence
-- **Stored on Server & Client**: Users can access previous messages when switching devices.
-- **Encryption in Storage**: Messages are stored securely.
-- **Cloud Storage Support**: Admins can configure external storage via API.
-
-## Security Measures
-- **AES-256 Encrypted Messages**
-- **TLS for Server Communication**
-- **Public/Private Key Authentication (Optional)**
-
-## Web UI (Optional)
-- **For Server Admins Only**
-- **Built with Flask (or CGI-based alternative in C)**
-- **Manages User Accounts, Logs, and Configuration**
-
-## Future Features
-- **Chatbot Support**
-- **Better Multi-User Load Management**
-- **Improved File Transfer Performance**
 
 ## License
+
 [MIT License](LICENSE)
 
----
-For client setup, refer to the [VoidLink Client Repository](https://github.com/TheVoidMonarch/void-x-link-client).
+## Contributing
 
+Contributions are welcome! Please feel free to submit a Pull Request.

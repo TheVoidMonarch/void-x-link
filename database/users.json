@@ -1,4 +1,7 @@
 {
-    "admin": "password123",
-    "user1": "letmein"
+    "admin": {
+        "password": "admin123",
+        "role": "admin",
+        "created_at": 1684156800
+    }
 }
