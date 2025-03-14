@@ -3,5 +3,26 @@
         "password": "admin123",
         "role": "admin",
         "created_at": 1684156800
+    },
+    "testuser": {
+        "password": "0f9aeadc502732e5a18590a8717f74d9:96fc8810c748e1b9d5f0ed3a8a2f52b1c205ae1ef395653a3f1c4aca4cf96e30",
+        "role": "user",
+        "created_at": 1741986030.421206
+    },
+    "thefool": {
+        "password": "2906b91610826644e133c7ffcc2e1ac8:9f7462b3c44304d52af4fa0ccc1da72406022ff6cf7fc44b8ea20012c68842be",
+        "role": "user",
+        "created_at": 1741987849.232321,
+        "device_ids": [
+            "mac-1FBF1EED-5935-5CE3-ABF4-91123470F33D"
+        ]
+    },
+    "patrick": {
+        "password": "e9c5359a44c898166cd31bdc33167540:c1ec36cae117924678d99d6d4bdd34201a9dee6f70a6250b822ba5cec3deb7fd",
+        "role": "user",
+        "created_at": 1741987914.088634,
+        "device_ids": [
+            "mac-1FBF1EED-5935-5CE3-ABF4-91123470F33D"
+        ]
     }
 }

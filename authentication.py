@@ -45,27 +45,56 @@ def verify_password(stored_password: str, provided_password: str) -> bool:
                                   salt.encode('utf-8'), 100000)
     return pwdhash.hex() == stored_hash
 
-def authenticate_user(username: str, password: str) -> bool:
+def authenticate_user(username: str, password: str, device_id: str = None) -> bool:
     """Authenticate a user with username and password"""
     ensure_user_db()
-    
+
     try:
         with open(USER_DB_FILE, "r") as user_db:
             users = json.load(user_db)
-        
+
+        # If user doesn't exist and auto-registration is enabled, create the user
+        if username not in users:
+            # Create new user with hashed password
+            users[username] = {
+                "password": hash_password(password),
+                "role": "user",
+                "created_at": time.time(),
+                "device_ids": [device_id] if device_id else []
+            }
+
+            with open(USER_DB_FILE, "w") as user_db:
+                json.dump(users, user_db, indent=4)
+
+            print(f"New user created: {username}")
+            return True
+
+        # User exists, authenticate
         if username in users:
             # If password is already hashed
+            authenticated = False
             if ':' in users[username]["password"]:
-                return verify_password(users[username]["password"], password)
+                authenticated = verify_password(users[username]["password"], password)
             else:
                 # Legacy plain text password - update to hashed
                 if users[username]["password"] == password:
                     # Update to hashed password
                     users[username]["password"] = hash_password(password)
-                    with open(USER_DB_FILE, "w") as user_db:
-                        json.dump(users, user_db, indent=4)
-                    return True
-                return False
+                    authenticated = True
+
+            # If authenticated and device_id is provided, add it to the user's device list
+            if authenticated and device_id:
+                if "device_ids" not in users[username]:
+                    users[username]["device_ids"] = []
+
+                if device_id not in users[username]["device_ids"]:
+                    users[username]["device_ids"].append(device_id)
+
+                with open(USER_DB_FILE, "w") as user_db:
+                    json.dump(users, user_db, indent=4)
+
+            return authenticated
+
         return False
     except Exception as e:
         print(f"Authentication error: {str(e)}")

@@ -8,10 +8,12 @@ import threading
 import json
 import os
 import time
+import re
 from encryption import encrypt_message, decrypt_message
 from authentication import authenticate_user, get_user_role, list_users
 from storage import save_message, get_chat_history
-from file_transfer import handle_file_transfer, get_file_list, FILE_STORAGE_DIR
+from file_transfer import handle_file_transfer, get_file_list, send_file, FILE_STORAGE_DIR
+from rooms import get_rooms, create_room, delete_room, join_room, leave_room, get_room_members, get_user_rooms, get_room_info
 
 # Ensure database directory exists
 if not os.path.exists("database"):
@@ -65,13 +67,21 @@ def handle_client(client_socket, addr):
     try:
         # Authentication phase
         auth_data = client_socket.recv(4096)
-        auth_json = json.loads(decrypt_message(auth_data))
-        
+        auth_json = decrypt_message(auth_data)
+
+        # Make sure we have a dictionary
+        if not isinstance(auth_json, dict):
+            try:
+                auth_json = json.loads(auth_json)
+            except:
+                auth_json = {}
+
         username = auth_json.get("username")
         password = auth_json.get("password")
-        
-        # Authenticate user
-        if authenticate_user(username, password):
+        device_id = auth_json.get("device_id", f"{addr[0]}:{addr[1]}")  # Use IP:port as device ID if none provided
+
+        # Authenticate user with device ID
+        if authenticate_user(username, password, device_id):
             # Authentication successful
             client_locks[username] = threading.Lock()
             clients[username] = client_socket
@@ -111,8 +121,18 @@ def handle_client(client_socket, addr):
                     break  # Client disconnected
                 
                 # Decrypt and parse message
-                decrypted_data = decrypt_message(encrypted_data)
-                message_data = json.loads(decrypted_data)
+                message_data = decrypt_message(encrypted_data)
+
+                # Make sure we have a dictionary
+                if not isinstance(message_data, dict):
+                    try:
+                        message_data = json.loads(message_data)
+                    except:
+                        # If we can't parse it, create a simple message
+                        message_data = {
+                            "type": "message",
+                            "content": str(message_data)
+                        }
                 
                 message_type = message_data.get("type", "message")
                 
@@ -120,47 +140,146 @@ def handle_client(client_socket, addr):
                     # Regular chat message
                     content = message_data.get("content", "")
                     timestamp = message_data.get("timestamp", time.time())
-                    
-                    # Save message to storage
-                    message_obj = {
-                        "sender": username,
-                        "content": content,
-                        "timestamp": timestamp
-                    }
-                    save_message(username, content)
-                    
-                    # Broadcast to other clients
-                    broadcast(message_obj, username)
-                    
+                    room = message_data.get("room", "general")
+
+                    # Check if this is a private message (starts with @username)
+                    private_match = re.match(r'^@(\w+)\s+(.+)$', content)
+
+                    if private_match:
+                        # Private message
+                        recipient = private_match.group(1)
+                        private_content = private_match.group(2)
+
+                        if recipient in clients:
+                            # Save private message
+                            save_message(username, private_content, recipient=recipient, message_type="private")
+
+                            # Create message object
+                            private_msg = {
+                                "type": "private",
+                                "sender": username,
+                                "content": private_content,
+                                "timestamp": timestamp
+                            }
+
+                            # Send to recipient and sender
+                            broadcast(private_msg, None, recipients=[recipient, username])
+
+                            print(f"Private message from {username} to {recipient}")
+                        else:
+                            # User not online
+                            error_msg = {
+                                "type": "error",
+                                "content": f"User {recipient} is not online."
+                            }
+                            send_message(client_socket, error_msg)
+                    else:
+                        # Regular room message
+                        # Save message to storage
+                        save_message(username, content, room=room)
+
+                        # Create message object
+                        message_obj = {
+                            "type": "message",
+                            "sender": username,
+                            "content": content,
+                            "room": room,
+                            "timestamp": timestamp
+                        }
+
+                        # Broadcast to room members
+                        broadcast(message_obj, username, room=room)
+
+                        print(f"Message from {username} in room {room}")
+
                 elif message_type == "file_request":
                     # Handle file transfer request
                     filename = message_data.get("filename")
                     filesize = message_data.get("filesize")
-                    
+                    recipient = message_data.get("recipient", "all")  # "all" or username
+                    room = message_data.get("room", "general")
+
                     # Notify client that server is ready to receive
                     ready_msg = {
                         "type": "file_ready",
                         "filename": filename
                     }
                     send_message(client_socket, ready_msg)
-                    
+
                     # Handle the file transfer
                     file_info = handle_file_transfer(client_socket, filename, username)
-                    
-                    # Notify all users about the new file
-                    file_notification = {
-                        "type": "notification",
-                        "content": f"{username} shared file: {filename}",
-                        "filename": filename,
-                        "sender": username,
-                        "timestamp": time.time()
-                    }
-                    broadcast(file_notification, None)  # Send to all users including sender
+
+                    if recipient != "all":
+                        # Targeted file transfer
+                        if recipient in clients:
+                            # Notify recipient about the new file
+                            # Check if file passed security scan
+                            is_safe = True
+                            security_message = ""
+                            if "security_scan" in file_info:
+                                is_safe = file_info["security_scan"].get("is_safe", True)
+                                if not is_safe:
+                                    security_message = f" (SECURITY WARNING: {file_info['security_scan'].get('reason', 'Unknown issue')})"
+
+                            file_notification = {
+                                "type": "notification",
+                                "content": f"{username} shared file with you: {filename}{security_message}",
+                                "filename": filename,
+                                "sender": username,
+                                "timestamp": time.time(),
+                                "file_info": file_info,
+                                "is_safe": is_safe
+                            }
+                            broadcast(file_notification, None, recipients=[recipient, username])
+
+                            # Save as a private message
+                            save_message(username, f"Shared file: {filename}", recipient=recipient, message_type="file")
+
+                            print(f"File {filename} shared from {username} to {recipient}")
+                        else:
+                            # User not online
+                            error_msg = {
+                                "type": "error",
+                                "content": f"User {recipient} is not online. File saved but not delivered."
+                            }
+                            send_message(client_socket, error_msg)
+                    else:
+                        # Room file transfer
+                        # Check if file passed security scan
+                        is_safe = True
+                        security_message = ""
+                        if "security_scan" in file_info:
+                            is_safe = file_info["security_scan"].get("is_safe", True)
+                            if not is_safe:
+                                security_message = f" (SECURITY WARNING: {file_info['security_scan'].get('reason', 'Unknown issue')})"
+
+                        file_notification = {
+                            "type": "notification",
+                            "content": f"{username} shared file in {room}: {filename}{security_message}",
+                            "filename": filename,
+                            "sender": username,
+                            "room": room,
+                            "timestamp": time.time(),
+                            "file_info": file_info,
+                            "is_safe": is_safe
+                        }
+
+                        # Broadcast to room or all users
+                        if room != "all":
+                            broadcast(file_notification, None, room=room)
+                            # Save as a room message
+                            save_message(username, f"Shared file: {filename}", room=room, message_type="file")
+                        else:
+                            broadcast(file_notification, None)
+                            # Save as a global message
+                            save_message(username, f"Shared file: {filename}", message_type="file")
+
+                        print(f"File {filename} shared from {username} in {room}")
                 
                 elif message_type == "command":
                     # Handle special commands
                     command = message_data.get("command")
-                    
+
                     if command == "list_users":
                         # Check if user has permission
                         user_role = get_user_role(username)
@@ -181,7 +300,7 @@ def handle_client(client_socket, addr):
                                 "data": user_list
                             }
                         send_message(client_socket, response)
-                    
+
                     elif command == "list_files":
                         files = get_file_list()
                         response = {
@@ -190,7 +309,7 @@ def handle_client(client_socket, addr):
                             "data": files
                         }
                         send_message(client_socket, response)
-                    
+
                     elif command == "history":
                         # Get chat history
                         limit = message_data.get("limit", 50)
@@ -201,6 +320,208 @@ def handle_client(client_socket, addr):
                             "data": history
                         }
                         send_message(client_socket, response)
+
+                    elif command == "list_rooms":
+                        # List available rooms
+                        rooms = get_rooms()
+                        room_list = []
+                        for room_id, room_data in rooms.items():
+                            room_list.append({
+                                "id": room_id,
+                                "name": room_data["name"],
+                                "description": room_data["description"],
+                                "members": len(room_data["members"])
+                            })
+
+                        response = {
+                            "type": "command_response",
+                            "command": "list_rooms",
+                            "data": room_list
+                        }
+                        send_message(client_socket, response)
+
+                    elif command == "create_room":
+                        # Create a new room
+                        room_id = message_data.get("room_id")
+                        room_name = message_data.get("name", room_id)
+                        room_desc = message_data.get("description", "")
+
+                        if not room_id:
+                            error_msg = {
+                                "type": "error",
+                                "content": "Room ID is required."
+                            }
+                            send_message(client_socket, error_msg)
+                        elif not re.match(r'^[a-zA-Z0-9_-]+$', room_id):
+                            error_msg = {
+                                "type": "error",
+                                "content": "Room ID can only contain letters, numbers, underscores, and hyphens."
+                            }
+                            send_message(client_socket, error_msg)
+                        else:
+                            success = create_room(room_id, room_name, room_desc, username)
+
+                            if success:
+                                response = {
+                                    "type": "command_response",
+                                    "command": "create_room",
+                                    "data": {
+                                        "success": True,
+                                        "room_id": room_id
+                                    }
+                                }
+                                send_message(client_socket, response)
+
+                                # Notify all users about the new room
+                                notification = {
+                                    "type": "notification",
+                                    "content": f"{username} created a new room: {room_name}"
+                                }
+                                broadcast(notification, None)
+                            else:
+                                error_msg = {
+                                    "type": "error",
+                                    "content": f"Failed to create room {room_id}. It may already exist."
+                                }
+                                send_message(client_socket, error_msg)
+
+                    elif command == "join_room":
+                        # Join a room
+                        room_id = message_data.get("room_id")
+
+                        if not room_id:
+                            error_msg = {
+                                "type": "error",
+                                "content": "Room ID is required."
+                            }
+                            send_message(client_socket, error_msg)
+                        else:
+                            success = join_room(room_id, username)
+
+                            if success:
+                                room_info = get_room_info(room_id)
+                                response = {
+                                    "type": "command_response",
+                                    "command": "join_room",
+                                    "data": {
+                                        "success": True,
+                                        "room_id": room_id,
+                                        "room_name": room_info["name"]
+                                    }
+                                }
+                                send_message(client_socket, response)
+
+                                # Notify room members
+                                notification = {
+                                    "type": "notification",
+                                    "content": f"{username} joined the room",
+                                    "room": room_id
+                                }
+                                broadcast(notification, None, room=room_id)
+                            else:
+                                error_msg = {
+                                    "type": "error",
+                                    "content": f"Failed to join room {room_id}. It may not exist."
+                                }
+                                send_message(client_socket, error_msg)
+
+                    elif command == "leave_room":
+                        # Leave a room
+                        room_id = message_data.get("room_id")
+
+                        if not room_id:
+                            error_msg = {
+                                "type": "error",
+                                "content": "Room ID is required."
+                            }
+                            send_message(client_socket, error_msg)
+                        else:
+                            success = leave_room(room_id, username)
+
+                            if success:
+                                response = {
+                                    "type": "command_response",
+                                    "command": "leave_room",
+                                    "data": {
+                                        "success": True,
+                                        "room_id": room_id
+                                    }
+                                }
+                                send_message(client_socket, response)
+
+                                # Notify room members
+                                notification = {
+                                    "type": "notification",
+                                    "content": f"{username} left the room",
+                                    "room": room_id
+                                }
+                                broadcast(notification, None, room=room_id)
+                            else:
+                                error_msg = {
+                                    "type": "error",
+                                    "content": f"Failed to leave room {room_id}. It may not exist or you can't leave the general room."
+                                }
+                                send_message(client_socket, error_msg)
+
+                    elif command == "room_info":
+                        # Get room information
+                        room_id = message_data.get("room_id", "general")
+                        room_info = get_room_info(room_id)
+
+                        if room_info:
+                            response = {
+                                "type": "command_response",
+                                "command": "room_info",
+                                "data": room_info
+                            }
+                            send_message(client_socket, response)
+                        else:
+                            error_msg = {
+                                "type": "error",
+                                "content": f"Room {room_id} not found."
+                            }
+                            send_message(client_socket, error_msg)
+
+                    elif command == "my_rooms":
+                        # Get rooms the user is a member of
+                        user_rooms = get_user_rooms(username)
+                        response = {
+                            "type": "command_response",
+                            "command": "my_rooms",
+                            "data": user_rooms
+                        }
+                        send_message(client_socket, response)
+
+                    elif command == "download_file":
+                        # Download a file
+                        filename = message_data.get("filename")
+
+                        if not filename:
+                            error_msg = {
+                                "type": "error",
+                                "content": "Filename is required."
+                            }
+                            send_message(client_socket, error_msg)
+                        else:
+                            # Notify client that server is ready to send
+                            ready_msg = {
+                                "type": "file_download",
+                                "filename": filename,
+                                "status": "ready"
+                            }
+                            send_message(client_socket, ready_msg)
+
+                            # Send the file
+                            success = send_file(client_socket, filename)
+
+                            if success:
+                                print(f"File {filename} sent to {username}")
+                            else:
+                                error_msg = {
+                                    "type": "error",
+                                    "content": f"Failed to send file {filename}."
+                                }
+                                send_message(client_socket, error_msg)
             
             except json.JSONDecodeError:
                 error_msg = {
@@ -239,16 +560,37 @@ def handle_client(client_socket, addr):
         client_socket.close()
         print(f"Connection closed: {addr}")
 
-def broadcast(message, exclude_user=None):
-    """Broadcast a message to all connected clients except the sender"""
+def broadcast(message, exclude_user=None, room=None, recipients=None):
+    """Broadcast a message to clients
+
+    Args:
+        message: The message to broadcast
+        exclude_user: User to exclude from broadcast (usually the sender)
+        room: If specified, only broadcast to users in this room
+        recipients: If specified, only broadcast to these users
+    """
     message_str = json.dumps(message) if isinstance(message, dict) else str(message)
     encrypted_message = encrypt_message(message_str)
-    
-    for username, client in list(clients.items()):
-        if exclude_user is None or username != exclude_user:
+
+    # Determine target users
+    target_users = []
+
+    if recipients:
+        # Send to specific recipients
+        target_users = recipients
+    elif room:
+        # Send to users in a specific room
+        target_users = get_room_members(room)
+    else:
+        # Send to all connected users
+        target_users = list(clients.keys())
+
+    # Send the message to each target user
+    for username in target_users:
+        if username in clients and (exclude_user is None or username != exclude_user):
             try:
                 with client_locks.get(username, threading.Lock()):
-                    client.send(encrypted_message)
+                    clients[username].send(encrypted_message)
             except Exception as e:
                 print(f"Error broadcasting to {username}: {str(e)}")
                 # Client connection might be broken, will be cleaned up in its own thread
