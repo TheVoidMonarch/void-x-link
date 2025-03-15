@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Files - VoidLink Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Files</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-btn">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-sm">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Size</th>
+                <th>Uploaded By</th>
+                <th>Uploaded At</th>
+                <th>Security</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td>{{ file.filename }}</td>
+                <td>{{ file.size|filesize }}</td>
+                <td>{{ file.uploaded_by }}</td>
+                <td>{{ file.timestamp|datetime }}</td>
+                <td>
+                    {% if file.security_scan %}
+                        {% if file.security_scan.is_safe %}
+                            <span class="badge bg-success">Safe</span>
+                        {% else %}
+                            <span class="badge bg-danger">Unsafe</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary">Not Scanned</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href="{{ url_for('view_file', filename=file.filename) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{{ url_for('download_file', filename=file.filename) }}" class="btn btn-outline-success">
+                            <i class="bi bi-download"></i>
+                        </a>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteFileModal{{ loop.index }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            
+            <!-- Delete File Modal -->
+            <div class="modal fade" id="deleteFileModal{{ loop.index }}" tabindex="-1" aria-labelledby="deleteFileModalLabel{{ loop.index }}" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteFileModalLabel{{ loop.index }}">Delete File</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            Are you sure you want to delete file <strong>{{ file.filename }}</strong>? This action cannot be undone.
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <form action="{{ url_for('delete_file_route', filename=file.filename) }}" method="post">
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Refresh button
+    document.getElementById('refresh-btn').addEventListener('click', function() {
+        location.reload();
+    });
+</script>
+{% endblock %}

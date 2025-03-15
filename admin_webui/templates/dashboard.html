@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - VoidLink Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-btn">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">Users</h5>
+                <p class="card-text display-4">{{ stats.users }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">Files</h5>
+                <p class="card-text display-4">{{ stats.files }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h5 class="card-title">Rooms</h5>
+                <p class="card-text display-4">{{ stats.rooms }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5 class="card-title">Active Transfers</h5>
+                <p class="card-text display-4">{{ stats.active_transfers }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                System Status
+            </div>
+            <div class="card-body">
+                <canvas id="systemChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                Recent Activity
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>User</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for message in recent_messages %}
+                            <tr>
+                                <td>{{ message.timestamp|datetime }}</td>
+                                <td>{{ message.sender }}</td>
+                                <td>{{ message.content }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // System chart
+    const ctx = document.getElementById('systemChart').getContext('2d');
+    const systemChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Users',
+                    data: [],
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Files',
+                    data: [],
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Transfers',
+                    data: [],
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Function to update chart data
+    function updateChart() {
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                const now = new Date();
+                const timeStr = now.getHours() + ':' + now.getMinutes() + ':' + now.getSeconds();
+                
+                // Add new data point
+                systemChart.data.labels.push(timeStr);
+                systemChart.data.datasets[0].data.push(data.users);
+                systemChart.data.datasets[1].data.push(data.files);
+                systemChart.data.datasets[2].data.push(data.active_transfers);
+                
+                // Keep only the last 10 data points
+                if (systemChart.data.labels.length > 10) {
+                    systemChart.data.labels.shift();
+                    systemChart.data.datasets.forEach(dataset => {
+                        dataset.data.shift();
+                    });
+                }
+                
+                systemChart.update();
+            })
+            .catch(error => console.error('Error fetching stats:', error));
+    }
+    
+    // Update chart every 5 seconds
+    updateChart();
+    setInterval(updateChart, 5000);
+    
+    // Refresh button
+    document.getElementById('refresh-btn').addEventListener('click', function() {
+        location.reload();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block title %}File Details - VoidLink Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">File Details: {{ file.filename }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('files') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Files
+            </a>
+            <a href="{{ url_for('download_file', filename=file.filename) }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-download"></i> Download
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteFileModal">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                File Information
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Filename:</strong> {{ file.filename }}
+                </div>
+                <div class="mb-3">
+                    <strong>Original Filename:</strong> {{ file.original_filename }}
+                </div>
+                <div class="mb-3">
+                    <strong>Size:</strong> {{ file.size|filesize }}
+                </div>
+                <div class="mb-3">
+                    <strong>Uploaded By:</strong> {{ file.uploaded_by }}
+                </div>
+                <div class="mb-3">
+                    <strong>Uploaded At:</strong> {{ file.timestamp|datetime }}
+                </div>
+                <div class="mb-3">
+                    <strong>File Path:</strong> {{ file.path }}
+                </div>
+                <div class="mb-3">
+                    <strong>File Hash:</strong> <code>{{ file.hash }}</code>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                Security Scan Results
+            </div>
+            <div class="card-body">
+                {% if file.security_scan %}
+                    <div class="mb-3">
+                        <strong>Security Status:</strong>
+                        {% if file.security_scan.is_safe %}
+                            <span class="badge bg-success">Safe</span>
+                        {% else %}
+                            <span class="badge bg-danger">Unsafe</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if not file.security_scan.is_safe %}
+                        <div class="mb-3">
+                            <strong>Reason:</strong> {{ file.security_scan.reason }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <strong>Size Check:</strong>
+                        <span class="badge {% if file.security_scan.size_check == 'PASSED' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ file.security_scan.size_check }}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Extension Check:</strong>
+                        <span class="badge {% if file.security_scan.extension_check == 'PASSED' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ file.security_scan.extension_check }}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>MIME Type:</strong> {{ file.security_scan.mime_type }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>MIME Check:</strong>
+                        <span class="badge {% if file.security_scan.mime_check == 'PASSED' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ file.security_scan.mime_check }}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Virus Scan:</strong>
+                        <span class="badge {% if file.security_scan.virus_scan == 'PASSED' %}bg-success{% elif file.security_scan.virus_scan == 'SKIPPED' %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ file.security_scan.virus_scan }}
+                        </span>
+                    </div>
+                    
+                    {% if file.security_scan.virus_scan == 'FAILED' %}
+                        <div class="mb-3">
+                            <strong>Virus Name:</strong> {{ file.security_scan.virus_name }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <strong>Quarantined:</strong>
+                        {% if file.security_scan.quarantined %}
+                            <span class="badge bg-warning">Yes</span>
+                            <div class="mt-2">
+                                <strong>Quarantine Path:</strong> {{ file.security_scan.quarantine_path }}
+                            </div>
+                        {% else %}
+                            <span class="badge bg-success">No</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Scan Duration:</strong> {{ file.security_scan.scan_duration|round(2) }} seconds
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        No security scan information available for this file.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Preview -->
+<div class="card mb-4">
+    <div class="card-header">
+        File Preview
+    </div>
+    <div class="card-body">
+        {% if file.security_scan and file.security_scan.is_safe %}
+            {% if file.security_scan.mime_type.startswith('image/') %}
+                <img src="{{ url_for('file_content', filename=file.filename) }}" class="img-fluid" alt="{{ file.filename }}">
+            {% elif file.security_scan.mime_type == 'text/plain' or file.security_scan.mime_type == 'text/csv' or file.security_scan.mime_type == 'text/markdown' %}
+                <pre class="border p-3 bg-light">{{ file_content }}</pre>
+            {% elif file.security_scan.mime_type == 'application/pdf' %}
+                <div class="ratio ratio-16x9">
+                    <iframe src="{{ url_for('file_content', filename=file.filename) }}" allowfullscreen></iframe>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    Preview not available for this file type.
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-danger">
+                Preview not available for unsafe files.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete File Modal -->
+<div class="modal fade" id="deleteFileModal" tabindex="-1" aria-labelledby="deleteFileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteFileModalLabel">Delete File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete file <strong>{{ file.filename }}</strong>? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('delete_file_route', filename=file.filename) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -8,9 +8,11 @@ import json
 import time
 import hashlib
 import base64
-from typing import Dict, List, Optional, Tuple
+import threading
+from typing import Dict, List, Optional, Tuple, BinaryIO
 from encryption import encrypt_message, decrypt_message
 from file_security import scan_file, is_file_too_large
+from error_handling import logger, log_info, log_warning, log_error, log_exception, FileTransferError
 
 # Constants
 FILE_STORAGE_DIR = "database/files/"

@@ -7,7 +7,10 @@ import os
 import hashlib
 import magic  # Requires python-magic package
 import re
+import time
 from typing import Dict, List, Tuple, Optional
+from error_handling import logger, log_info, log_warning, log_error, FileSecurityError
+from virus_scanner import scan_file_for_viruses, is_clamd_available
 
 # Constants
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB max file size
@@ -101,49 +104,78 @@ def calculate_file_hash(file_path: str) -> str:
 
 def scan_file(file_path: str, filename: str, file_size: int) -> Dict:
     """Scan a file for potential security issues
-    
+
     Returns a dictionary with scan results
     """
     ensure_security_dirs()
-    
+
+    scan_start_time = time.time()
+    log_info(f"Starting security scan for file: {filename}")
+
     results = {
         "filename": filename,
         "size": file_size,
         "size_check": "PASSED" if not is_file_too_large(file_size) else "FAILED",
         "extension_check": "PASSED" if not has_dangerous_extension(filename) else "FAILED",
         "hash": calculate_file_hash(file_path),
+        "scan_time": time.time(),
         "is_safe": True,
         "quarantined": False,
-        "reason": None
+        "reason": None,
+        "virus_scan": "SKIPPED"  # Default if ClamAV is not available
     }
-    
+
     # Check MIME type
     mime_allowed, mime_type = is_mime_type_allowed(file_path)
     results["mime_type"] = mime_type
     results["mime_check"] = "PASSED" if mime_allowed else "FAILED"
-    
-    # Determine if file is safe
+
+    # Determine if file is safe based on basic checks
     if results["size_check"] == "FAILED":
         results["is_safe"] = False
         results["reason"] = f"File exceeds maximum size limit of {MAX_FILE_SIZE/1024/1024} MB"
-    
-    if results["extension_check"] == "FAILED":
+
+    elif results["extension_check"] == "FAILED":
         results["is_safe"] = False
         results["reason"] = f"File has a potentially dangerous extension"
-    
-    if results["mime_check"] == "FAILED":
+
+    elif results["mime_check"] == "FAILED":
         results["is_safe"] = False
         results["reason"] = f"File type {mime_type} is not allowed"
-    
+
+    # If file passed basic checks, scan for viruses
+    if results["is_safe"]:
+        # Scan for viruses if ClamAV is available
+        is_clean, virus_name = scan_file_for_viruses(file_path)
+
+        if is_clamd_available():
+            results["virus_scan"] = "PASSED" if is_clean else "FAILED"
+
+            if not is_clean:
+                results["is_safe"] = False
+                results["reason"] = f"Virus detected: {virus_name}"
+                results["virus_name"] = virus_name
+                log_warning(f"Virus detected in file {filename}: {virus_name}")
+        else:
+            log_warning(f"Virus scanning skipped for {filename} - ClamAV not available")
+
     # Quarantine file if not safe
     if not results["is_safe"]:
         quarantine_path = os.path.join(QUARANTINE_DIR, filename)
         try:
             os.rename(file_path, quarantine_path)
             results["quarantined"] = True
+            results["quarantine_path"] = quarantine_path
+            log_warning(f"File quarantined: {filename} -> {quarantine_path}")
         except Exception as e:
-            print(f"Error quarantining file: {str(e)}")
-    
+            log_error(f"Error quarantining file: {str(e)}")
+
+    scan_duration = time.time() - scan_start_time
+    results["scan_duration"] = scan_duration
+
+    log_info(f"Security scan completed for {filename} in {scan_duration:.2f}s: " +
+             ("PASSED" if results["is_safe"] else f"FAILED - {results['reason']}"))
+
     return results
 
 # Initialize security directories

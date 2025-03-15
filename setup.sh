@@ -22,6 +22,11 @@ chmod +x lint.sh
 chmod +x lint_fixes.py
 chmod +x quick_lint_fix.py
 chmod +x fix_lint.sh
+chmod +x run_tests.sh
+chmod +x tests/run_tests.py
+chmod +x voidlink_cli.py
+chmod +x run_admin_webui.sh
+chmod +x admin_webui/app.py
 
 # Create necessary directories
 mkdir -p database/files
