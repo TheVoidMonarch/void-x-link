@@ -1,0 +1,8 @@
+2025-03-15 23:37:33,528 - voidlink - WARNING - ClamAV not available: Error 61 connecting localhost:3310. Connection refused.
+2025-03-15 23:37:33,528 - voidlink - WARNING - ClamAV is not available, virus scanning will be skipped
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/test_voidlink.py", line 12, in <module>
+    from server import start_server
+  File "/Users/void/void-x-link/server.py", line 21, in <module>
+    from rooms import get_rooms, create_room, delete_room, join_room, leave_room, get_room_members, get_user_rooms, get_room_info
+ModuleNotFoundError: No module named 'rooms'

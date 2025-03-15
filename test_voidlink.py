@@ -13,6 +13,7 @@ from server import start_server
 from client import VoidLinkClient
 from encryption import encrypt_message, decrypt_message
 
+
 class TestVoidLink(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -65,10 +66,10 @@ class TestVoidLink(unittest.TestCase):
         # Test message sending
         message = "Hello, World!"
         self.assertTrue(self.client1.send_message(message))
-        
+
         # Wait for message delivery
         time.sleep(0.5)
-        
+
         # Verify message received
         received = self.client2.get_last_message()
         self.assertEqual(received["content"], message)
@@ -86,14 +87,14 @@ class TestVoidLink(unittest.TestCase):
         # Send private message
         message = "@user2 This is a private message"
         self.client1.send_message(message)
-        
+
         time.sleep(0.5)
-        
+
         # Verify message received by intended recipient
         received = self.client2.get_last_message()
         self.assertEqual(received["type"], "private")
         self.assertEqual(received["content"], "This is a private message")
-        
+
         # Verify message not received by other users
         received = self.client3.get_last_message()
         self.assertNotEqual(received["content"], "This is a private message")
@@ -108,16 +109,16 @@ class TestVoidLink(unittest.TestCase):
 
         # Send file
         self.assertTrue(self.client1.send_file("test_files/test.txt"))
-        
+
         time.sleep(1)
-        
+
         # Verify file received
         files = self.client2.list_files()
         self.assertIn("test.txt", [f["filename"] for f in files])
 
         # Download file
         self.assertTrue(self.client2.download_file("test.txt", "test_downloads"))
-        
+
         # Verify file contents
         with open("test_downloads/test.txt", "r") as f:
             content = f.read()
@@ -134,16 +135,16 @@ class TestVoidLink(unittest.TestCase):
         # Create room
         room_id = "test_room"
         self.assertTrue(self.client1.create_room(room_id, "Test Room"))
-        
+
         # Join room
         self.assertTrue(self.client2.join_room(room_id))
-        
+
         # Send message to room
         message = "Hello room!"
         self.client1.send_message(message, room=room_id)
-        
+
         time.sleep(0.5)
-        
+
         # Verify message received in room
         received = self.client2.get_last_message()
         self.assertEqual(received["content"], message)
@@ -159,16 +160,16 @@ class TestVoidLink(unittest.TestCase):
 
         # Send large file
         self.assertTrue(self.client1.send_file("test_files/large.txt"))
-        
+
         time.sleep(2)
-        
+
         # Verify file received
         files = self.client2.list_files()
         self.assertIn("large.txt", [f["filename"] for f in files])
 
         # Download and verify large file
         self.assertTrue(self.client2.download_file("large.txt", "test_downloads"))
-        
+
         with open("test_downloads/large.txt", "r") as f:
             content = f.read()
         self.assertEqual(content, "Large content" * 1000)
@@ -185,6 +186,7 @@ class TestVoidLink(unittest.TestCase):
 
         # Send messages concurrently
         messages = []
+
         def send_messages(client, count):
             for i in range(count):
                 msg = f"Message {i} from {client.username}"
@@ -259,6 +261,6 @@ class TestVoidLink(unittest.TestCase):
         shutil.rmtree("test_files", ignore_errors=True)
         shutil.rmtree("test_downloads", ignore_errors=True)
 
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
-

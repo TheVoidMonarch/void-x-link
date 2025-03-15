@@ -1,0 +1,6 @@
+Running comprehensive tests...
+Some comprehensive tests failed. Check test_results/comprehensive_test_results.txt for details.
+
+Test Summary:
+
+For detailed results, see test_results/comprehensive_test_results.txt

@@ -1,0 +1,193 @@
+[
+  {
+    "id": "AUTH-001",
+    "category": "Authentication",
+    "name": "User Login - Valid Credentials",
+    "description": "Test user login with valid credentials",
+    "steps": [
+      "Start the VoidLink client",
+      "Enter valid username and password",
+      "Submit login credentials"
+    ],
+    "expected_results": [
+      "User should be successfully authenticated",
+      "Client should display the main chat interface",
+      "Welcome message should be displayed"
+    ],
+    "setup_commands": [],
+    "teardown_commands": []
+  },
+  {
+    "id": "AUTH-002",
+    "category": "Authentication",
+    "name": "User Login - Invalid Credentials",
+    "description": "Test user login with invalid credentials",
+    "steps": [
+      "Start the VoidLink client",
+      "Enter invalid username and password",
+      "Submit login credentials"
+    ],
+    "expected_results": [
+      "Authentication should fail",
+      "Error message should be displayed",
+      "User should remain on the login screen"
+    ],
+    "setup_commands": [],
+    "teardown_commands": []
+  },
+  {
+    "id": "MSG-001",
+    "category": "Messaging",
+    "name": "Send Message - Global Chat",
+    "description": "Test sending a message to the global chat",
+    "steps": [
+      "Login with valid credentials",
+      "Type a message in the chat input",
+      "Send the message"
+    ],
+    "expected_results": [
+      "Message should be sent successfully",
+      "Message should appear in the chat window",
+      "Other users should receive the message"
+    ],
+    "setup_commands": [],
+    "teardown_commands": []
+  },
+  {
+    "id": "MSG-002",
+    "category": "Messaging",
+    "name": "Send Private Message",
+    "description": "Test sending a private message to another user",
+    "steps": [
+      "Login with valid credentials",
+      "Type a private message with format '@username message'",
+      "Send the message"
+    ],
+    "expected_results": [
+      "Message should be sent successfully",
+      "Message should appear in the chat window with private indicator",
+      "Only the intended recipient should receive the message"
+    ],
+    "setup_commands": [],
+    "teardown_commands": []
+  },
+  {
+    "id": "FILE-001",
+    "category": "File Transfer",
+    "name": "Upload File - Small File",
+    "description": "Test uploading a small file",
+    "steps": [
+      "Login with valid credentials",
+      "Use the file upload command to select a small file",
+      "Confirm the upload"
+    ],
+    "expected_results": [
+      "File should be uploaded successfully",
+      "Success message should be displayed",
+      "File should be available for download by other users"
+    ],
+    "setup_commands": [
+      "echo 'Test file content' > test_small_file.txt"
+    ],
+    "teardown_commands": [
+      "rm -f test_small_file.txt"
+    ]
+  },
+  {
+    "id": "FILE-002",
+    "category": "File Transfer",
+    "name": "Download File",
+    "description": "Test downloading a file",
+    "steps": [
+      "Login with valid credentials",
+      "List available files",
+      "Select a file to download",
+      "Confirm the download"
+    ],
+    "expected_results": [
+      "File should be downloaded successfully",
+      "Success message should be displayed",
+      "File should be saved to the downloads directory"
+    ],
+    "setup_commands": [],
+    "teardown_commands": []
+  },
+  {
+    "id": "ROOM-001",
+    "category": "Chat Rooms",
+    "name": "Create Chat Room",
+    "description": "Test creating a new chat room",
+    "steps": [
+      "Login with valid credentials",
+      "Use the create room command",
+      "Enter a room name and description"
+    ],
+    "expected_results": [
+      "Room should be created successfully",
+      "Success message should be displayed",
+      "Room should appear in the room list"
+    ],
+    "setup_commands": [],
+    "teardown_commands": []
+  },
+  {
+    "id": "ROOM-002",
+    "category": "Chat Rooms",
+    "name": "Join Chat Room",
+    "description": "Test joining an existing chat room",
+    "steps": [
+      "Login with valid credentials",
+      "List available rooms",
+      "Select a room to join",
+      "Confirm joining the room"
+    ],
+    "expected_results": [
+      "User should join the room successfully",
+      "Room chat history should be displayed",
+      "User should be able to send messages to the room"
+    ],
+    "setup_commands": [],
+    "teardown_commands": []
+  },
+  {
+    "id": "SEC-001",
+    "category": "Security",
+    "name": "File Security Scan",
+    "description": "Test file security scanning",
+    "steps": [
+      "Login with valid credentials",
+      "Upload a file with a suspicious extension",
+      "Observe the security scan results"
+    ],
+    "expected_results": [
+      "File should be scanned for security issues",
+      "Security warning should be displayed",
+      "File should be quarantined if it fails security checks"
+    ],
+    "setup_commands": [
+      "echo 'echo \"This is a test\"' > test_suspicious.sh"
+    ],
+    "teardown_commands": [
+      "rm -f test_suspicious.sh"
+    ]
+  },
+  {
+    "id": "SEC-002",
+    "category": "Security",
+    "name": "Account Lockout",
+    "description": "Test account lockout after multiple failed login attempts",
+    "steps": [
+      "Attempt to login with incorrect password multiple times",
+      "Observe the login behavior after multiple failures",
+      "Wait for lockout period to expire",
+      "Attempt to login with correct password"
+    ],
+    "expected_results": [
+      "Account should be locked after multiple failed attempts",
+      "Lockout message should be displayed",
+      "Login should be possible after lockout period expires"
+    ],
+    "setup_commands": [],
+    "teardown_commands": []
+  }
+]

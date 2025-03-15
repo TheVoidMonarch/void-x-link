@@ -1,0 +1,13 @@
+[INFO] 2025-03-15 11:22:49 - Loaded 12 test cases
+[INFO] 2025-03-15 11:22:49 - Starting VoidLink server...
+[INFO] 2025-03-15 11:22:49 - Starting server using subprocess
+[ERROR] 2025-03-15 11:22:52 - Server failed to start: Traceback (most recent call last):
+  File "/Users/void/void-x-link/run_server.py", line 8, in <module>
+    from server import start_server
+  File "/Users/void/void-x-link/server.py", line 14, in <module>
+    from authentication import authenticate_user, get_user_role, list_users
+  File "/Users/void/void-x-link/authentication.py", line 11, in <module>
+    import bcrypt
+ModuleNotFoundError: No module named 'bcrypt'
+
+[ERROR] 2025-03-15 11:22:52 - Failed to start server, aborting tests

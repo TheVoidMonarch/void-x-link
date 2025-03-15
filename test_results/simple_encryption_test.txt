@@ -1,0 +1,6 @@
+Running simple encryption test...
+Running simple encryption tests...
+Encrypt/decrypt string test passed!
+Encrypt/decrypt dictionary test passed!
+All tests passed!
+Simple encryption test passed!

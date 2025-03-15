@@ -1,0 +1,425 @@
+test_account_lockout (test_authentication.TestAuthentication.test_account_lockout)
+Test account lockout after failed attempts ... ERROR
+test_authenticate_user (test_authentication.TestAuthentication.test_authenticate_user)
+Test user authentication ... ERROR
+test_create_user (test_authentication.TestAuthentication.test_create_user)
+Test user creation ... ERROR
+test_delete_user (test_authentication.TestAuthentication.test_delete_user)
+Test user deletion ... ERROR
+test_device_id_tracking (test_authentication.TestAuthentication.test_device_id_tracking)
+Test device ID tracking ... ERROR
+test_get_user_role (test_authentication.TestAuthentication.test_get_user_role)
+Test getting user role ... ERROR
+test_hash_password (test_authentication.TestAuthentication.test_hash_password)
+Test password hashing ... ERROR
+test_list_users (test_authentication.TestAuthentication.test_list_users)
+Test listing users ... ERROR
+test_verify_password (test_authentication.TestAuthentication.test_verify_password)
+Test password verification ... ERROR
+test_decrypt_invalid_data (test_encryption.TestEncryption.test_decrypt_invalid_data)
+Test decrypting invalid data ... ERROR
+test_encrypt_decrypt_bytes (test_encryption.TestEncryption.test_encrypt_decrypt_bytes)
+Test encrypting and decrypting bytes ... ERROR
+test_encrypt_decrypt_dict (test_encryption.TestEncryption.test_encrypt_decrypt_dict)
+Test encrypting and decrypting a dictionary ... ERROR
+test_encrypt_decrypt_string (test_encryption.TestEncryption.test_encrypt_decrypt_string)
+Test encrypting and decrypting a string ... ERROR
+test_get_encryption_key (test_encryption.TestEncryption.test_get_encryption_key)
+Test getting encryption key ... ERROR
+test_calculate_file_hash (test_file_security.TestFileSecurity.test_calculate_file_hash)
+Test file hash calculation ... ERROR
+test_ensure_security_dirs (test_file_security.TestFileSecurity.test_ensure_security_dirs)
+Test ensuring security directories exist ... ERROR
+test_has_dangerous_extension (test_file_security.TestFileSecurity.test_has_dangerous_extension)
+Test dangerous extension checking ... ERROR
+test_is_file_too_large (test_file_security.TestFileSecurity.test_is_file_too_large)
+Test file size checking ... ERROR
+test_is_mime_type_allowed (test_file_security.TestFileSecurity.test_is_mime_type_allowed)
+Test MIME type checking ... ERROR
+test_scan_file (test_file_security.TestFileSecurity.test_scan_file)
+Test file scanning ... ERROR
+test_delete_file (test_file_transfer.TestFileTransfer.test_delete_file)
+Test deleting file ... ERROR
+test_ensure_file_dirs (test_file_transfer.TestFileTransfer.test_ensure_file_dirs)
+Test ensuring file directories exist ... ERROR
+test_get_file_list (test_file_transfer.TestFileTransfer.test_get_file_list)
+Test getting file list ... ERROR
+test_get_file_metadata (test_file_transfer.TestFileTransfer.test_get_file_metadata)
+Test getting file metadata ... ERROR
+test_handle_file_transfer (test_file_transfer.TestFileTransfer.test_handle_file_transfer)
+Test handling file transfer ... ERROR
+test_save_file_metadata (test_file_transfer.TestFileTransfer.test_save_file_metadata)
+Test saving file metadata ... ERROR
+test_send_file (test_file_transfer.TestFileTransfer.test_send_file)
+Test sending file ... ERROR
+test_cancel_transfer (test_resumable_transfer.TestResumableTransfer.test_cancel_transfer)
+Test cancelling transfer ... ERROR
+test_complete_resumable_upload (test_resumable_transfer.TestResumableTransfer.test_complete_resumable_upload)
+Test completing resumable upload ... ERROR
+test_get_active_transfers (test_resumable_transfer.TestResumableTransfer.test_get_active_transfers)
+Test getting active transfers ... ERROR
+test_handle_chunk (test_resumable_transfer.TestResumableTransfer.test_handle_chunk)
+Test handling chunk ... ERROR
+test_send_file_chunk (test_resumable_transfer.TestResumableTransfer.test_send_file_chunk)
+Test sending file chunk ... ERROR
+test_start_resumable_download (test_resumable_transfer.TestResumableTransfer.test_start_resumable_download)
+Test starting resumable download ... ERROR
+test_start_resumable_upload (test_resumable_transfer.TestResumableTransfer.test_start_resumable_upload)
+Test starting resumable upload ... ERROR
+test_transfer_state (test_resumable_transfer.TestResumableTransfer.test_transfer_state)
+Test TransferState class ... ERROR
+
+======================================================================
+ERROR: test_account_lockout (test_authentication.TestAuthentication.test_account_lockout)
+Test account lockout after failed attempts
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_authenticate_user (test_authentication.TestAuthentication.test_authenticate_user)
+Test user authentication
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_create_user (test_authentication.TestAuthentication.test_create_user)
+Test user creation
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_delete_user (test_authentication.TestAuthentication.test_delete_user)
+Test user deletion
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_device_id_tracking (test_authentication.TestAuthentication.test_device_id_tracking)
+Test device ID tracking
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_get_user_role (test_authentication.TestAuthentication.test_get_user_role)
+Test getting user role
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_hash_password (test_authentication.TestAuthentication.test_hash_password)
+Test password hashing
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_list_users (test_authentication.TestAuthentication.test_list_users)
+Test listing users
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_verify_password (test_authentication.TestAuthentication.test_verify_password)
+Test password verification
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_authentication.py", line 30, in setUp
+    self.original_user_db_file = authentication.USER_DB_FILE
+                                 ^^^^^^^^^^^^^^
+NameError: name 'authentication' is not defined. Did you mean: 'TestAuthentication'?
+
+======================================================================
+ERROR: test_decrypt_invalid_data (test_encryption.TestEncryption.test_decrypt_invalid_data)
+Test decrypting invalid data
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_encryption.py", line 28, in setUp
+    self.original_key_file = encryption.KEY_FILE
+                             ^^^^^^^^^^
+NameError: name 'encryption' is not defined. Did you mean: 'Exception'?
+
+======================================================================
+ERROR: test_encrypt_decrypt_bytes (test_encryption.TestEncryption.test_encrypt_decrypt_bytes)
+Test encrypting and decrypting bytes
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_encryption.py", line 28, in setUp
+    self.original_key_file = encryption.KEY_FILE
+                             ^^^^^^^^^^
+NameError: name 'encryption' is not defined. Did you mean: 'Exception'?
+
+======================================================================
+ERROR: test_encrypt_decrypt_dict (test_encryption.TestEncryption.test_encrypt_decrypt_dict)
+Test encrypting and decrypting a dictionary
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_encryption.py", line 28, in setUp
+    self.original_key_file = encryption.KEY_FILE
+                             ^^^^^^^^^^
+NameError: name 'encryption' is not defined. Did you mean: 'Exception'?
+
+======================================================================
+ERROR: test_encrypt_decrypt_string (test_encryption.TestEncryption.test_encrypt_decrypt_string)
+Test encrypting and decrypting a string
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_encryption.py", line 28, in setUp
+    self.original_key_file = encryption.KEY_FILE
+                             ^^^^^^^^^^
+NameError: name 'encryption' is not defined. Did you mean: 'Exception'?
+
+======================================================================
+ERROR: test_get_encryption_key (test_encryption.TestEncryption.test_get_encryption_key)
+Test getting encryption key
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_encryption.py", line 28, in setUp
+    self.original_key_file = encryption.KEY_FILE
+                             ^^^^^^^^^^
+NameError: name 'encryption' is not defined. Did you mean: 'Exception'?
+
+======================================================================
+ERROR: test_calculate_file_hash (test_file_security.TestFileSecurity.test_calculate_file_hash)
+Test file hash calculation
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_security.py", line 28, in setUp
+    self.original_quarantine_dir = file_security.QUARANTINE_DIR
+                                   ^^^^^^^^^^^^^
+NameError: name 'file_security' is not defined
+
+======================================================================
+ERROR: test_ensure_security_dirs (test_file_security.TestFileSecurity.test_ensure_security_dirs)
+Test ensuring security directories exist
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_security.py", line 28, in setUp
+    self.original_quarantine_dir = file_security.QUARANTINE_DIR
+                                   ^^^^^^^^^^^^^
+NameError: name 'file_security' is not defined
+
+======================================================================
+ERROR: test_has_dangerous_extension (test_file_security.TestFileSecurity.test_has_dangerous_extension)
+Test dangerous extension checking
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_security.py", line 28, in setUp
+    self.original_quarantine_dir = file_security.QUARANTINE_DIR
+                                   ^^^^^^^^^^^^^
+NameError: name 'file_security' is not defined
+
+======================================================================
+ERROR: test_is_file_too_large (test_file_security.TestFileSecurity.test_is_file_too_large)
+Test file size checking
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_security.py", line 28, in setUp
+    self.original_quarantine_dir = file_security.QUARANTINE_DIR
+                                   ^^^^^^^^^^^^^
+NameError: name 'file_security' is not defined
+
+======================================================================
+ERROR: test_is_mime_type_allowed (test_file_security.TestFileSecurity.test_is_mime_type_allowed)
+Test MIME type checking
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_security.py", line 28, in setUp
+    self.original_quarantine_dir = file_security.QUARANTINE_DIR
+                                   ^^^^^^^^^^^^^
+NameError: name 'file_security' is not defined
+
+======================================================================
+ERROR: test_scan_file (test_file_security.TestFileSecurity.test_scan_file)
+Test file scanning
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_security.py", line 28, in setUp
+    self.original_quarantine_dir = file_security.QUARANTINE_DIR
+                                   ^^^^^^^^^^^^^
+NameError: name 'file_security' is not defined
+
+======================================================================
+ERROR: test_delete_file (test_file_transfer.TestFileTransfer.test_delete_file)
+Test deleting file
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_transfer.py", line 56, in setUp
+    self.original_storage_dir = file_transfer.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^
+NameError: name 'file_transfer' is not defined
+
+======================================================================
+ERROR: test_ensure_file_dirs (test_file_transfer.TestFileTransfer.test_ensure_file_dirs)
+Test ensuring file directories exist
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_transfer.py", line 56, in setUp
+    self.original_storage_dir = file_transfer.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^
+NameError: name 'file_transfer' is not defined
+
+======================================================================
+ERROR: test_get_file_list (test_file_transfer.TestFileTransfer.test_get_file_list)
+Test getting file list
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_transfer.py", line 56, in setUp
+    self.original_storage_dir = file_transfer.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^
+NameError: name 'file_transfer' is not defined
+
+======================================================================
+ERROR: test_get_file_metadata (test_file_transfer.TestFileTransfer.test_get_file_metadata)
+Test getting file metadata
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_transfer.py", line 56, in setUp
+    self.original_storage_dir = file_transfer.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^
+NameError: name 'file_transfer' is not defined
+
+======================================================================
+ERROR: test_handle_file_transfer (test_file_transfer.TestFileTransfer.test_handle_file_transfer)
+Test handling file transfer
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_transfer.py", line 56, in setUp
+    self.original_storage_dir = file_transfer.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^
+NameError: name 'file_transfer' is not defined
+
+======================================================================
+ERROR: test_save_file_metadata (test_file_transfer.TestFileTransfer.test_save_file_metadata)
+Test saving file metadata
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_transfer.py", line 56, in setUp
+    self.original_storage_dir = file_transfer.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^
+NameError: name 'file_transfer' is not defined
+
+======================================================================
+ERROR: test_send_file (test_file_transfer.TestFileTransfer.test_send_file)
+Test sending file
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_file_transfer.py", line 56, in setUp
+    self.original_storage_dir = file_transfer.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^
+NameError: name 'file_transfer' is not defined
+
+======================================================================
+ERROR: test_cancel_transfer (test_resumable_transfer.TestResumableTransfer.test_cancel_transfer)
+Test cancelling transfer
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_resumable_transfer.py", line 57, in setUp
+    self.original_storage_dir = file_transfer_resumable.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'file_transfer_resumable' is not defined
+
+======================================================================
+ERROR: test_complete_resumable_upload (test_resumable_transfer.TestResumableTransfer.test_complete_resumable_upload)
+Test completing resumable upload
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_resumable_transfer.py", line 57, in setUp
+    self.original_storage_dir = file_transfer_resumable.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'file_transfer_resumable' is not defined
+
+======================================================================
+ERROR: test_get_active_transfers (test_resumable_transfer.TestResumableTransfer.test_get_active_transfers)
+Test getting active transfers
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_resumable_transfer.py", line 57, in setUp
+    self.original_storage_dir = file_transfer_resumable.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'file_transfer_resumable' is not defined
+
+======================================================================
+ERROR: test_handle_chunk (test_resumable_transfer.TestResumableTransfer.test_handle_chunk)
+Test handling chunk
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_resumable_transfer.py", line 57, in setUp
+    self.original_storage_dir = file_transfer_resumable.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'file_transfer_resumable' is not defined
+
+======================================================================
+ERROR: test_send_file_chunk (test_resumable_transfer.TestResumableTransfer.test_send_file_chunk)
+Test sending file chunk
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_resumable_transfer.py", line 57, in setUp
+    self.original_storage_dir = file_transfer_resumable.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'file_transfer_resumable' is not defined
+
+======================================================================
+ERROR: test_start_resumable_download (test_resumable_transfer.TestResumableTransfer.test_start_resumable_download)
+Test starting resumable download
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_resumable_transfer.py", line 57, in setUp
+    self.original_storage_dir = file_transfer_resumable.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'file_transfer_resumable' is not defined
+
+======================================================================
+ERROR: test_start_resumable_upload (test_resumable_transfer.TestResumableTransfer.test_start_resumable_upload)
+Test starting resumable upload
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_resumable_transfer.py", line 57, in setUp
+    self.original_storage_dir = file_transfer_resumable.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'file_transfer_resumable' is not defined
+
+======================================================================
+ERROR: test_transfer_state (test_resumable_transfer.TestResumableTransfer.test_transfer_state)
+Test TransferState class
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/void/void-x-link/tests/test_resumable_transfer.py", line 57, in setUp
+    self.original_storage_dir = file_transfer_resumable.FILE_STORAGE_DIR
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'file_transfer_resumable' is not defined
+
+----------------------------------------------------------------------
+Ran 35 tests in 0.041s
+
+FAILED (errors=35)

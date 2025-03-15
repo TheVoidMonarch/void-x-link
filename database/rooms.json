@@ -1,0 +1,9 @@
+{
+    "general": {
+        "name": "General",
+        "description": "General chat room",
+        "created_by": "system",
+        "created_at": 1684156800,
+        "members": []
+    }
+}

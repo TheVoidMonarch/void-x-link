@@ -1,0 +1,102 @@
+2025-03-16 00:15:16,859 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:15:16,859 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 00:15:16,864 - voidlink - INFO - Starting security scan for file: test.txt
+2025-03-16 00:15:16,864 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:15:16,864 - voidlink - INFO - No virus found in /var/folders/cm/j2q9dvh11gx05k4xmrcnhttm0000gn/T/tmpm_u6azvf.txt
+2025-03-16 00:15:16,864 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:15:16,864 - voidlink - INFO - Security scan completed for test.txt in 0.00s: PASSED
+2025-03-16 00:15:16,865 - voidlink - INFO - Starting security scan for file: test.exe
+2025-03-16 00:15:16,866 - voidlink - WARNING - File quarantined: test.exe -> database/quarantine/test.exe
+2025-03-16 00:15:16,866 - voidlink - INFO - Security scan completed for test.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 00:24:26,553 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:24:26,599 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 00:24:26,605 - voidlink - INFO - Starting security scan for file: test.txt
+2025-03-16 00:24:26,605 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:24:26,605 - voidlink - INFO - No virus found in /var/folders/cm/j2q9dvh11gx05k4xmrcnhttm0000gn/T/tmp3okzdkvh.txt
+2025-03-16 00:24:26,605 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:24:26,606 - voidlink - INFO - Security scan completed for test.txt in 0.00s: PASSED
+2025-03-16 00:24:26,606 - voidlink - INFO - Starting security scan for file: test.exe
+2025-03-16 00:24:26,607 - voidlink - WARNING - File quarantined: test.exe -> database/quarantine/test.exe
+2025-03-16 00:24:26,608 - voidlink - INFO - Security scan completed for test.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 00:24:29,192 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:24:29,193 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 00:24:29,200 - voidlink - INFO - Starting security scan for file: test.txt
+2025-03-16 00:24:29,200 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:24:29,200 - voidlink - INFO - No virus found in /var/folders/cm/j2q9dvh11gx05k4xmrcnhttm0000gn/T/tmphm90uifo.txt
+2025-03-16 00:24:29,201 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:24:29,201 - voidlink - INFO - Security scan completed for test.txt in 0.00s: PASSED
+2025-03-16 00:24:29,202 - voidlink - INFO - Starting security scan for file: test.exe
+2025-03-16 00:24:29,202 - voidlink - WARNING - File quarantined: test.exe -> database/quarantine/test.exe
+2025-03-16 00:24:29,203 - voidlink - INFO - Security scan completed for test.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 00:54:55,029 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:55,029 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 00:54:55,036 - voidlink - INFO - Starting security scan for file: test.txt
+2025-03-16 00:54:55,036 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:55,036 - voidlink - INFO - No virus found in /var/folders/cm/j2q9dvh11gx05k4xmrcnhttm0000gn/T/tmpayz65xh9.txt
+2025-03-16 00:54:55,036 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:55,037 - voidlink - INFO - Security scan completed for test.txt in 0.00s: PASSED
+2025-03-16 00:54:55,037 - voidlink - INFO - Starting security scan for file: test.exe
+2025-03-16 00:54:55,038 - voidlink - WARNING - File quarantined: test.exe -> database/quarantine/test.exe
+2025-03-16 00:54:55,039 - voidlink - INFO - Security scan completed for test.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 00:54:58,003 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:58,005 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 00:54:58,014 - voidlink - INFO - Starting security scan for file: test.txt
+2025-03-16 00:54:58,015 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:58,015 - voidlink - INFO - No virus found in /var/folders/cm/j2q9dvh11gx05k4xmrcnhttm0000gn/T/tmpmpjikm7_.txt
+2025-03-16 00:54:58,015 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:58,016 - voidlink - INFO - Security scan completed for test.txt in 0.00s: PASSED
+2025-03-16 00:54:58,017 - voidlink - INFO - Starting security scan for file: test.exe
+2025-03-16 00:54:58,018 - voidlink - WARNING - File quarantined: test.exe -> database/quarantine/test.exe
+2025-03-16 00:54:58,018 - voidlink - INFO - Security scan completed for test.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 01:32:56,761 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4553750720'>
+2025-03-16 01:32:56,765 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 01:32:59,150 - voidlink - INFO - Starting security scan for file: safe.txt
+2025-03-16 01:32:59,151 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4553750720'>
+2025-03-16 01:32:59,155 - voidlink - ERROR - Error scanning file for viruses: not enough values to unpack (expected 2, got 0)
+2025-03-16 01:32:59,156 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4553750720'>
+2025-03-16 01:32:59,156 - voidlink - WARNING - Virus detected in file safe.txt: Scan error: not enough values to unpack (expected 2, got 0)
+2025-03-16 01:32:59,157 - voidlink - WARNING - File quarantined: safe.txt -> database/quarantine/safe.txt
+2025-03-16 01:32:59,157 - voidlink - INFO - Security scan completed for safe.txt in 0.01s: FAILED - Virus detected: Scan error: not enough values to unpack (expected 2, got 0)
+2025-03-16 01:32:59,157 - voidlink - INFO - Starting security scan for file: dangerous.exe
+2025-03-16 01:32:59,158 - voidlink - WARNING - File quarantined: dangerous.exe -> database/quarantine/dangerous.exe
+2025-03-16 01:32:59,158 - voidlink - INFO - Security scan completed for dangerous.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 01:35:58,003 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4496685248'>
+2025-03-16 01:35:58,004 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 01:36:01,206 - voidlink - INFO - Starting security scan for file: safe.txt
+2025-03-16 01:36:01,207 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4496685248'>
+2025-03-16 01:36:01,210 - voidlink - ERROR - Error scanning file for viruses: not enough values to unpack (expected 2, got 0)
+2025-03-16 01:36:01,210 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4496685248'>
+2025-03-16 01:36:01,210 - voidlink - WARNING - Virus detected in file safe.txt: Scan error: not enough values to unpack (expected 2, got 0)
+2025-03-16 01:36:01,211 - voidlink - WARNING - File quarantined: safe.txt -> database/quarantine/safe.txt
+2025-03-16 01:36:01,212 - voidlink - INFO - Security scan completed for safe.txt in 0.01s: FAILED - Virus detected: Scan error: not enough values to unpack (expected 2, got 0)
+2025-03-16 01:36:01,212 - voidlink - INFO - Starting security scan for file: dangerous.exe
+2025-03-16 01:36:01,216 - voidlink - WARNING - File quarantined: dangerous.exe -> database/quarantine/dangerous.exe
+2025-03-16 01:36:01,217 - voidlink - INFO - Security scan completed for dangerous.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 02:00:09,634 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4583225536'>
+2025-03-16 02:00:09,635 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 02:00:11,845 - voidlink - INFO - Starting security scan for file: safe.txt
+2025-03-16 02:00:11,846 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4583225536'>
+2025-03-16 02:00:11,848 - voidlink - ERROR - Error scanning file for viruses: not enough values to unpack (expected 2, got 0)
+2025-03-16 02:00:11,848 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4583225536'>
+2025-03-16 02:00:11,848 - voidlink - WARNING - Virus detected in file safe.txt: Scan error: not enough values to unpack (expected 2, got 0)
+2025-03-16 02:00:11,850 - voidlink - WARNING - File quarantined: safe.txt -> database/quarantine/safe.txt
+2025-03-16 02:00:11,850 - voidlink - INFO - Security scan completed for safe.txt in 0.01s: FAILED - Virus detected: Scan error: not enough values to unpack (expected 2, got 0)
+2025-03-16 02:00:11,851 - voidlink - INFO - Starting security scan for file: dangerous.exe
+2025-03-16 02:00:11,852 - voidlink - WARNING - File quarantined: dangerous.exe -> database/quarantine/dangerous.exe
+2025-03-16 02:00:11,852 - voidlink - INFO - Security scan completed for dangerous.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 02:28:54,850 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4485232832'>
+2025-03-16 02:28:54,851 - voidlink - INFO - ClamAV is available for virus scanning
+2025-03-16 02:28:58,638 - voidlink - INFO - Starting security scan for file: safe.txt
+2025-03-16 02:28:58,639 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4485232832'>
+2025-03-16 02:28:58,669 - voidlink - ERROR - Error scanning file for viruses: not enough values to unpack (expected 2, got 0)
+2025-03-16 02:28:58,671 - voidlink - INFO - ClamAV version: <MagicMock name='mock.ClamdNetworkSocket().version()' id='4485232832'>
+2025-03-16 02:28:58,671 - voidlink - WARNING - Virus detected in file safe.txt: Scan error: not enough values to unpack (expected 2, got 0)
+2025-03-16 02:28:58,694 - voidlink - WARNING - File quarantined: safe.txt -> database/quarantine/safe.txt
+2025-03-16 02:28:58,697 - voidlink - INFO - Security scan completed for safe.txt in 0.06s: FAILED - Virus detected: Scan error: not enough values to unpack (expected 2, got 0)
+2025-03-16 02:28:58,699 - voidlink - INFO - Starting security scan for file: dangerous.exe
+2025-03-16 02:28:58,701 - voidlink - WARNING - File quarantined: dangerous.exe -> database/quarantine/dangerous.exe
+2025-03-16 02:28:58,702 - voidlink - INFO - Security scan completed for dangerous.exe in 0.00s: FAILED - File has a potentially dangerous extension
+2025-03-16 03:02:40,459 - voidlink - WARNING - ClamAV not available: Error 61 connecting localhost:3310. Connection refused.
+2025-03-16 03:02:40,460 - voidlink - WARNING - ClamAV is not available, virus scanning will be skipped
+2025-03-16 03:08:10,604 - voidlink - WARNING - ClamAV not available: Error 61 connecting localhost:3310. Connection refused.
+2025-03-16 03:08:10,605 - voidlink - WARNING - ClamAV is not available, virus scanning will be skipped

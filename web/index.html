@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoidLink - Secure File Sharing</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <img src="img/voidlink-logo.svg" alt="VoidLink Logo" class="logo">
+                <h1>VoidLink</h1>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="active"><a href="#"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="#"><i class="fas fa-file-upload"></i> Upload Files</a></li>
+                <li><a href="#"><i class="fas fa-folder"></i> My Files</a></li>
+                <li><a href="#"><i class="fas fa-share-alt"></i> Shared Files</a></li>
+                <li><a href="#"><i class="fas fa-users"></i> Contacts</a></li>
+                <li><a href="#"><i class="fas fa-cog"></i> Settings</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <img src="img/avatar.jpg" alt="User Avatar" class="avatar">
+                    <div class="user-details">
+                        <h3>John Doe</h3>
+                        <p>Premium User</p>
+                    </div>
+                </div>
+                <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search files...">
+                </div>
+                <div class="header-actions">
+                    <button class="notification-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </button>
+                    <button class="help-btn">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="dashboard">
+                <h2 class="section-title">Dashboard</h2>
+                
+                <!-- Storage Overview -->
+                <div class="widget storage-widget">
+                    <div class="widget-header">
+                        <h3>Storage Overview</h3>
+                        <button class="upgrade-btn">Upgrade</button>
+                    </div>
+                    <div class="storage-info">
+                        <div class="storage-progress">
+                            <div class="progress-bar" style="width: 65%"></div>
+                        </div>
+                        <div class="storage-details">
+                            <p><span class="used">6.5 GB</span> used of <span class="total">10 GB</span></p>
+                            <p class="remaining">3.5 GB remaining</p>
+                        </div>
+                    </div>
+                    <div class="storage-breakdown">
+                        <div class="breakdown-item">
+                            <div class="color-indicator documents"></div>
+                            <div class="breakdown-details">
+                                <p class="breakdown-type">Documents</p>
+                                <p class="breakdown-size">2.1 GB</p>
+                            </div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="color-indicator images"></div>
+                            <div class="breakdown-details">
+                                <p class="breakdown-type">Images</p>
+                                <p class="breakdown-size">1.8 GB</p>
+                            </div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="color-indicator videos"></div>
+                            <div class="breakdown-details">
+                                <p class="breakdown-type">Videos</p>
+                                <p class="breakdown-size">1.5 GB</p>
+                            </div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="color-indicator other"></div>
+                            <div class="breakdown-details">
+                                <p class="breakdown-type">Other</p>
+                                <p class="breakdown-size">1.1 GB</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <div class="action-card">
+                        <div class="action-icon upload">
+                            <i class="fas fa-file-upload"></i>
+                        </div>
+                        <h3>Upload File</h3>
+                        <p>Share files securely</p>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-icon folder">
+                            <i class="fas fa-folder-plus"></i>
+                        </div>
+                        <h3>New Folder</h3>
+                        <p>Organize your files</p>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-icon share">
+                            <i class="fas fa-share-alt"></i>
+                        </div>
+                        <h3>Share Link</h3>
+                        <p>Generate sharing links</p>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-icon scan">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h3>Security Scan</h3>
+                        <p>Check file security</p>
+                    </div>
+                </div>
+
+                <!-- Recent Files -->
+                <div class="widget recent-files-widget">
+                    <div class="widget-header">
+                        <h3>Recent Files</h3>
+                        <a href="#" class="view-all">View All</a>
+                    </div>
+                    <div class="file-list">
+                        <div class="file-item">
+                            <div class="file-icon pdf">
+                                <i class="fas fa-file-pdf"></i>
+                            </div>
+                            <div class="file-details">
+                                <h4>Project_Proposal.pdf</h4>
+                                <p>1.2 MB • Modified 2 hours ago</p>
+                            </div>
+                            <div class="file-actions">
+                                <button class="action-btn"><i class="fas fa-download"></i></button>
+                                <button class="action-btn"><i class="fas fa-share-alt"></i></button>
+                                <button class="action-btn"><i class="fas fa-ellipsis-v"></i></button>
+                            </div>
+                        </div>
+                        <div class="file-item">
+                            <div class="file-icon image">
+                                <i class="fas fa-file-image"></i>
+                            </div>
+                            <div class="file-details">
+                                <h4>Vacation_Photo.jpg</h4>
+                                <p>3.5 MB • Modified yesterday</p>
+                            </div>
+                            <div class="file-actions">
+                                <button class="action-btn"><i class="fas fa-download"></i></button>
+                                <button class="action-btn"><i class="fas fa-share-alt"></i></button>
+                                <button class="action-btn"><i class="fas fa-ellipsis-v"></i></button>
+                            </div>
+                        </div>
+                        <div class="file-item">
+                            <div class="file-icon doc">
+                                <i class="fas fa-file-word"></i>
+                            </div>
+                            <div class="file-details">
+                                <h4>Meeting_Notes.docx</h4>
+                                <p>245 KB • Modified 3 days ago</p>
+                            </div>
+                            <div class="file-actions">
+                                <button class="action-btn"><i class="fas fa-download"></i></button>
+                                <button class="action-btn"><i class="fas fa-share-alt"></i></button>
+                                <button class="action-btn"><i class="fas fa-ellipsis-v"></i></button>
+                            </div>
+                        </div>
+                        <div class="file-item">
+                            <div class="file-icon spreadsheet">
+                                <i class="fas fa-file-excel"></i>
+                            </div>
+                            <div class="file-details">
+                                <h4>Budget_2023.xlsx</h4>
+                                <p>1.8 MB • Modified 1 week ago</p>
+                            </div>
+                            <div class="file-actions">
+                                <button class="action-btn"><i class="fas fa-download"></i></button>
+                                <button class="action-btn"><i class="fas fa-share-alt"></i></button>
+                                <button class="action-btn"><i class="fas fa-ellipsis-v"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity and Sharing -->
+                <div class="dashboard-row">
+                    <!-- Recent Activity -->
+                    <div class="widget activity-widget">
+                        <div class="widget-header">
+                            <h3>Recent Activity</h3>
+                            <a href="#" class="view-all">View All</a>
+                        </div>
+                        <div class="activity-list">
+                            <div class="activity-item">
+                                <div class="activity-icon upload">
+                                    <i class="fas fa-file-upload"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <h4>You uploaded Project_Proposal.pdf</h4>
+                                    <p>2 hours ago</p>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon share">
+                                    <i class="fas fa-share-alt"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <h4>You shared Vacation_Photo.jpg with Jane</h4>
+                                    <p>Yesterday</p>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon download">
+                                    <i class="fas fa-download"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <h4>Mike downloaded Meeting_Notes.docx</h4>
+                                    <p>3 days ago</p>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon edit">
+                                    <i class="fas fa-edit"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <h4>You edited Budget_2023.xlsx</h4>
+                                    <p>1 week ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shared With Me -->
+                    <div class="widget shared-widget">
+                        <div class="widget-header">
+                            <h3>Shared With Me</h3>
+                            <a href="#" class="view-all">View All</a>
+                        </div>
+                        <div class="shared-list">
+                            <div class="shared-item">
+                                <div class="file-icon presentation">
+                                    <i class="fas fa-file-powerpoint"></i>
+                                </div>
+                                <div class="shared-details">
+                                    <h4>Company_Presentation.pptx</h4>
+                                    <p>Shared by Mike • 5 MB</p>
+                                </div>
+                                <div class="shared-date">
+                                    <p>Today</p>
+                                </div>
+                            </div>
+                            <div class="shared-item">
+                                <div class="file-icon zip">
+                                    <i class="fas fa-file-archive"></i>
+                                </div>
+                                <div class="shared-details">
+                                    <h4>Project_Assets.zip</h4>
+                                    <p>Shared by Sarah • 25 MB</p>
+                                </div>
+                                <div class="shared-date">
+                                    <p>Yesterday</p>
+                                </div>
+                            </div>
+                            <div class="shared-item">
+                                <div class="file-icon pdf">
+                                    <i class="fas fa-file-pdf"></i>
+                                </div>
+                                <div class="shared-details">
+                                    <h4>Contract_Draft.pdf</h4>
+                                    <p>Shared by Alex • 2.3 MB</p>
+                                </div>
+                                <div class="shared-date">
+                                    <p>Last week</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="modal upload-modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Upload Files</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-area">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h3>Drag & Drop Files Here</h3>
+                    <p>or</p>
+                    <button class="browse-btn">Browse Files</button>
+                    <input type="file" id="fileInput" multiple hidden>
+                </div>
+                <div class="upload-list" id="uploadList">
+                    <!-- Upload items will be added here dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel-btn">Cancel</button>
+                <button class="upload-btn">Upload Files</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

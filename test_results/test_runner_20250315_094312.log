@@ -1,0 +1,4 @@
+[INFO] 2025-03-15 09:43:12 - Loaded 12 test cases
+[INFO] 2025-03-15 09:43:12 - Starting VoidLink server...
+[ERROR] 2025-03-15 09:43:12 - Error starting server: [Errno 2] No such file or directory: './reset_db.sh'
+[ERROR] 2025-03-15 09:43:12 - Failed to start server, aborting tests

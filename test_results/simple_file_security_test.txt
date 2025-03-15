@@ -1,0 +1,21 @@
+Running simple file_security test with mock modules...
+Running simple_file_security_test.py with mock modules...
+2025-03-16 00:54:55,029 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:55,029 - voidlink - INFO - ClamAV is available for virus scanning
+Running simple file_security tests...
+is_file_too_large test passed!
+has_dangerous_extension test passed!
+is_mime_type_allowed test passed!
+calculate_file_hash test passed!
+2025-03-16 00:54:55,036 - voidlink - INFO - Starting security scan for file: test.txt
+2025-03-16 00:54:55,036 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:55,036 - voidlink - INFO - No virus found in /var/folders/cm/j2q9dvh11gx05k4xmrcnhttm0000gn/T/tmpayz65xh9.txt
+2025-03-16 00:54:55,036 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:55,037 - voidlink - INFO - Security scan completed for test.txt in 0.00s: PASSED
+2025-03-16 00:54:55,037 - voidlink - INFO - Starting security scan for file: test.exe
+2025-03-16 00:54:55,038 - voidlink - WARNING - File quarantined: test.exe -> database/quarantine/test.exe
+2025-03-16 00:54:55,039 - voidlink - INFO - Security scan completed for test.exe in 0.00s: FAILED - File has a potentially dangerous extension
+scan_file test passed!
+All tests passed!
+Script executed successfully!
+Simple file_security test passed!

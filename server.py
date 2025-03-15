@@ -53,6 +53,7 @@ PORT = config["server_port"]
 clients = {}
 client_locks = {}  # Thread locks for each client
 
+
 def send_message(client_socket, message_data):
     """Send an encrypted message to a client"""
     try:
@@ -61,7 +62,7 @@ def send_message(client_socket, message_data):
             message_str = json.dumps(message_data)
         else:
             message_str = str(message_data)
-            
+
         # Encrypt and send
         encrypted_message = encrypt_message(message_str)
         client_socket.send(encrypted_message)
@@ -69,6 +70,7 @@ def send_message(client_socket, message_data):
     except Exception as e:
         print(f"Error sending message: {str(e)}")
         return False
+
 
 def handle_client(client_socket, addr):
     """Handle client connection and messages"""
@@ -88,17 +90,18 @@ def handle_client(client_socket, addr):
             if not isinstance(auth_json, dict):
                 try:
                     auth_json = json.loads(auth_json)
-                except:
+                except BaseException:
                     auth_json = {}
 
             username = auth_json.get("username")
             password = auth_json.get("password")
-            device_id = auth_json.get("device_id", f"{addr[0]}:{addr[1]}")  # Use IP:port as device ID if none provided
+            # Use IP:port as device ID if none provided
+            device_id = auth_json.get("device_id", f"{addr[0]}:{addr[1]}")
 
             if not username or not password:
                 raise AuthenticationError("Missing username or password",
-                                         {"username_provided": bool(username),
-                                          "password_provided": bool(password)})
+                                          {"username_provided": bool(username),
+                                           "password_provided": bool(password)})
 
             # Authenticate user with device ID
             if authenticate_user(username, password, device_id):
@@ -122,15 +125,15 @@ def handle_client(client_socket, addr):
                     "timestamp": time.time()
                 }
                 broadcast(join_notification, username)
-        else:
-            # Authentication failed
-            log_warning(f"Failed authentication attempt for user {username} from {addr}")
-            error = AuthenticationError("Invalid username or password",
-                                       {"ip": addr[0], "username": username})
-            error_msg = error.to_dict()
-            send_message(client_socket, error_msg)
-            client_socket.close()
-            return
+            else:
+                # Authentication failed
+                log_warning(f"Failed authentication attempt for user {username} from {addr}")
+                error = AuthenticationError("Invalid username or password",
+                                            {"ip": addr[0], "username": username})
+                error_msg = error.to_dict()
+                send_message(client_socket, error_msg)
+                client_socket.close()
+                return
         except AuthenticationError as e:
             log_warning(f"Authentication error: {str(e)}")
             send_message(client_socket, e.to_dict())
@@ -146,14 +149,14 @@ def handle_client(client_socket, addr):
             send_message(client_socket, error_msg)
             client_socket.close()
             return
-        
+
         # Message handling loop
         while True:
             try:
                 encrypted_data = client_socket.recv(4096)
                 if not encrypted_data:
                     break  # Client disconnected
-                
+
                 # Decrypt and parse message
                 message_data = decrypt_message(encrypted_data)
 
@@ -161,15 +164,15 @@ def handle_client(client_socket, addr):
                 if not isinstance(message_data, dict):
                     try:
                         message_data = json.loads(message_data)
-                    except:
+                    except BaseException:
                         # If we can't parse it, create a simple message
                         message_data = {
                             "type": "message",
                             "content": str(message_data)
                         }
-                
+
                 message_type = message_data.get("type", "message")
-                
+
                 if message_type == "message":
                     # Regular chat message
                     content = message_data.get("content", "")
@@ -186,7 +189,11 @@ def handle_client(client_socket, addr):
 
                         if recipient in clients:
                             # Save private message
-                            save_message(username, private_content, recipient=recipient, message_type="private")
+                            save_message(
+                                username,
+                                private_content,
+                                recipient=recipient,
+                                message_type="private")
 
                             # Create message object
                             private_msg = {
@@ -237,10 +244,12 @@ def handle_client(client_socket, addr):
                     try:
                         if resumable:
                             # Handle resumable file transfer
-                            log_info(f"Starting resumable file upload for {filename} ({filesize} bytes) from {username}")
+                            log_info(
+                                f"Starting resumable file upload for {filename} ({filesize} bytes) from {username}")
 
                             # Start the upload
-                            upload_info = start_resumable_upload(client_socket, filename, filesize, username)
+                            upload_info = start_resumable_upload(
+                                client_socket, filename, filesize, username)
 
                             # The rest of the upload will be handled by chunk messages
                             # We'll store the recipient and room info for later
@@ -249,7 +258,8 @@ def handle_client(client_socket, addr):
 
                         else:
                             # Handle regular file transfer
-                            log_info(f"Starting regular file upload for {filename} ({filesize} bytes) from {username}")
+                            log_info(
+                                f"Starting regular file upload for {filename} ({filesize} bytes) from {username}")
 
                             # Notify client that server is ready to receive
                             ready_msg = {
@@ -279,7 +289,9 @@ def handle_client(client_socket, addr):
                             if "security_scan" in file_info:
                                 is_safe = file_info["security_scan"].get("is_safe", True)
                                 if not is_safe:
-                                    security_message = f" (SECURITY WARNING: {file_info['security_scan'].get('reason', 'Unknown issue')})"
+                                    security_message = f" (SECURITY WARNING: {
+                                        file_info['security_scan'].get(
+                                            'reason', 'Unknown issue')})"
 
                             file_notification = {
                                 "type": "notification",
@@ -288,20 +300,22 @@ def handle_client(client_socket, addr):
                                 "sender": username,
                                 "timestamp": time.time(),
                                 "file_info": file_info,
-                                "is_safe": is_safe
-                            }
+                                "is_safe": is_safe}
                             broadcast(file_notification, None, recipients=[recipient, username])
 
                             # Save as a private message
-                            save_message(username, f"Shared file: {filename}", recipient=recipient, message_type="file")
+                            save_message(
+                                username,
+                                f"Shared file: {filename}",
+                                recipient=recipient,
+                                message_type="file")
 
                             print(f"File {filename} shared from {username} to {recipient}")
                         else:
                             # User not online
                             error_msg = {
                                 "type": "error",
-                                "content": f"User {recipient} is not online. File saved but not delivered."
-                            }
+                                "content": f"User {recipient} is not online. File saved but not delivered."}
                             send_message(client_socket, error_msg)
                     else:
                         # Room file transfer
@@ -311,7 +325,9 @@ def handle_client(client_socket, addr):
                         if "security_scan" in file_info:
                             is_safe = file_info["security_scan"].get("is_safe", True)
                             if not is_safe:
-                                security_message = f" (SECURITY WARNING: {file_info['security_scan'].get('reason', 'Unknown issue')})"
+                                security_message = f" (SECURITY WARNING: {
+                                    file_info['security_scan'].get(
+                                        'reason', 'Unknown issue')})"
 
                         file_notification = {
                             "type": "notification",
@@ -321,21 +337,24 @@ def handle_client(client_socket, addr):
                             "room": room,
                             "timestamp": time.time(),
                             "file_info": file_info,
-                            "is_safe": is_safe
-                        }
+                            "is_safe": is_safe}
 
                         # Broadcast to room or all users
                         if room != "all":
                             broadcast(file_notification, None, room=room)
                             # Save as a room message
-                            save_message(username, f"Shared file: {filename}", room=room, message_type="file")
+                            save_message(
+                                username,
+                                f"Shared file: {filename}",
+                                room=room,
+                                message_type="file")
                         else:
                             broadcast(file_notification, None)
                             # Save as a global message
                             save_message(username, f"Shared file: {filename}", message_type="file")
 
                         print(f"File {filename} shared from {username} in {room}")
-                
+
                 elif message_type == "file_chunk":
                     # Handle a chunk of a resumable file upload
                     transfer_id = message_data.get("transfer_id")
@@ -352,7 +371,8 @@ def handle_client(client_socket, addr):
                     else:
                         try:
                             # Handle the chunk
-                            result = handle_chunk(client_socket, transfer_id, chunk_index, chunk_data, chunk_hash)
+                            result = handle_chunk(
+                                client_socket, transfer_id, chunk_index, chunk_data, chunk_hash)
                             log_info(f"Processed chunk {chunk_index} for transfer {transfer_id}")
                         except FileTransferError as e:
                             error_msg = {
@@ -397,27 +417,30 @@ def handle_client(client_socket, addr):
                                         is_safe = True
                                         security_message = ""
                                         if "security_scan" in file_info:
-                                            is_safe = file_info["security_scan"].get("is_safe", True)
+                                            is_safe = file_info["security_scan"].get(
+                                                "is_safe", True)
                                             if not is_safe:
-                                                security_message = f" (SECURITY WARNING: {file_info['security_scan'].get('reason', 'Unknown issue')})"
+                                                security_message = f" (SECURITY WARNING: {
+                                                    file_info['security_scan'].get(
+                                                        'reason', 'Unknown issue')})"
 
                                         # Notify recipient
                                         file_notification = {
                                             "type": "notification",
-                                            "content": f"{username} shared file with you: {file_info['filename']}{security_message}",
+                                            "content": f"{username} shared file with you: {
+                                                file_info['filename']}{security_message}",
                                             "filename": file_info['filename'],
                                             "sender": username,
                                             "timestamp": time.time(),
                                             "file_info": file_info,
-                                            "is_safe": is_safe
-                                        }
-                                        broadcast(file_notification, None, recipients=[recipient, username])
+                                            "is_safe": is_safe}
+                                        broadcast(
+                                            file_notification, None, recipients=[
+                                                recipient, username])
                                     else:
                                         # User not online
                                         error_msg = {
-                                            "type": "error",
-                                            "content": f"User {recipient} is not online. File saved but not delivered."
-                                        }
+                                            "type": "error", "content": f"User {recipient} is not online. File saved but not delivered."}
                                         send_message(client_socket, error_msg)
                                 else:
                                     # Room file transfer
@@ -427,19 +450,21 @@ def handle_client(client_socket, addr):
                                     if "security_scan" in file_info:
                                         is_safe = file_info["security_scan"].get("is_safe", True)
                                         if not is_safe:
-                                            security_message = f" (SECURITY WARNING: {file_info['security_scan'].get('reason', 'Unknown issue')})"
+                                            security_message = f" (SECURITY WARNING: {
+                                                file_info['security_scan'].get(
+                                                    'reason', 'Unknown issue')})"
 
                                     # Notify room
                                     file_notification = {
                                         "type": "notification",
-                                        "content": f"{username} shared file in {room}: {file_info['filename']}{security_message}",
+                                        "content": f"{username} shared file in {room}: {
+                                            file_info['filename']}{security_message}",
                                         "filename": file_info['filename'],
                                         "sender": username,
                                         "room": room,
                                         "timestamp": time.time(),
                                         "file_info": file_info,
-                                        "is_safe": is_safe
-                                    }
+                                        "is_safe": is_safe}
 
                                     # Broadcast to room or all users
                                     if room != "all":
@@ -470,7 +495,8 @@ def handle_client(client_socket, addr):
                             filename = transfer_id.split("_")[1] if "_" in transfer_id else ""
 
                             # Send the chunk
-                            result = send_file_chunk(client_socket, transfer_id, filename, chunk_index)
+                            result = send_file_chunk(
+                                client_socket, transfer_id, filename, chunk_index)
 
                             if not result.get("success", False):
                                 error_msg = {
@@ -572,8 +598,7 @@ def handle_client(client_socket, addr):
                         elif not re.match(r'^[a-zA-Z0-9_-]+$', room_id):
                             error_msg = {
                                 "type": "error",
-                                "content": "Room ID can only contain letters, numbers, underscores, and hyphens."
-                            }
+                                "content": "Room ID can only contain letters, numbers, underscores, and hyphens."}
                             send_message(client_socket, error_msg)
                         else:
                             success = create_room(room_id, room_name, room_desc, username)
@@ -598,8 +623,7 @@ def handle_client(client_socket, addr):
                             else:
                                 error_msg = {
                                     "type": "error",
-                                    "content": f"Failed to create room {room_id}. It may already exist."
-                                }
+                                    "content": f"Failed to create room {room_id}. It may already exist."}
                                 send_message(client_socket, error_msg)
 
                     elif command == "join_room":
@@ -676,8 +700,7 @@ def handle_client(client_socket, addr):
                             else:
                                 error_msg = {
                                     "type": "error",
-                                    "content": f"Failed to leave room {room_id}. It may not exist or you can't leave the general room."
-                                }
+                                    "content": f"Failed to leave room {room_id}. It may not exist or you can't leave the general room."}
                                 send_message(client_socket, error_msg)
 
                     elif command == "room_info":
@@ -725,14 +748,17 @@ def handle_client(client_socket, addr):
                             try:
                                 if resumable:
                                     # Start resumable download
-                                    log_info(f"Starting resumable download of {filename} for {username} from position {start_position}")
-                                    result = start_resumable_download(client_socket, filename, start_position)
+                                    log_info(
+                                        f"Starting resumable download of {filename} for {username} from position {start_position}")
+                                    result = start_resumable_download(
+                                        client_socket, filename, start_position)
 
                                     # Wait for client to request chunks
                                     # (Handled in the message loop)
                                 else:
                                     # Regular download
-                                    log_info(f"Starting regular download of {filename} for {username}")
+                                    log_info(
+                                        f"Starting regular download of {filename} for {username}")
                                     # Notify client that server is ready to send
                                     ready_msg = {
                                         "type": "file_download",
@@ -789,14 +815,14 @@ def handle_client(client_socket, addr):
                                 }
                             }
                             send_message(client_socket, response)
-            
+
             except json.JSONDecodeError:
                 error_msg = {
                     "type": "error",
                     "content": "Invalid message format"
                 }
                 send_message(client_socket, error_msg)
-            
+
             except Exception as e:
                 print(f"Error processing message from {username}: {str(e)}")
                 error_msg = {
@@ -831,6 +857,7 @@ def handle_client(client_socket, addr):
 
         client_socket.close()
         log_info(f"Connection closed: {addr}")
+
 
 def broadcast(message, exclude_user=None, room=None, recipients=None):
     """Broadcast a message to clients
@@ -867,6 +894,7 @@ def broadcast(message, exclude_user=None, room=None, recipients=None):
                 print(f"Error broadcasting to {username}: {str(e)}")
                 # Client connection might be broken, will be cleaned up in its own thread
 
+
 def start_server():
     """Start the VoidLink server"""
     try:
@@ -877,14 +905,14 @@ def start_server():
         print(f"VoidLink Server running on {HOST}:{PORT}")
         print(f"Encryption: {'Enabled' if config.get('encryption_enabled', True) else 'Disabled'}")
         print(f"Storage: {'Local' if config.get('storage', {}).get('local', True) else 'Disabled'}")
-        
+
         while True:
             client_socket, addr = server.accept()
             print(f"New connection from: {addr}")
             client_thread = threading.Thread(target=handle_client, args=(client_socket, addr))
             client_thread.daemon = True
             client_thread.start()
-            
+
     except KeyboardInterrupt:
         print("\nShutting down server...")
     except Exception as e:
@@ -892,6 +920,7 @@ def start_server():
     finally:
         if 'server' in locals():
             server.close()
+
 
 if __name__ == "__main__":
     print("""

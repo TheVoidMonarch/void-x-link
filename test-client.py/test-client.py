@@ -12,6 +12,7 @@ PORT = 52384        # Make sure this matches your server's port
 # Encryption key (must match server-side key)
 SECRET_KEY = b"your-32-byte-secret-key-here"  # Change this to match server config
 
+
 def encrypt_message(message):
     """Encrypts a message using AES encryption."""
     iv = os.urandom(16)  # Generate a random IV
@@ -19,12 +20,14 @@ def encrypt_message(message):
     encrypted_bytes = cipher.encrypt(pad(message.encode(), AES.block_size))
     return base64.b64encode(iv + encrypted_bytes).decode()
 
+
 def decrypt_message(encrypted_message):
     """Decrypts a message using AES encryption."""
     encrypted_data = base64.b64decode(encrypted_message)
     iv, encrypted_bytes = encrypted_data[:16], encrypted_data[16:]
     cipher = AES.new(SECRET_KEY, AES.MODE_CBC, iv)
     return unpad(cipher.decrypt(encrypted_bytes), AES.block_size).decode()
+
 
 def main():
     try:
@@ -54,6 +57,7 @@ def main():
         client_socket.close()
     except Exception as e:
         print(f"[❌] Error: {e}")
+
 
 if __name__ == "__main__":
     main()

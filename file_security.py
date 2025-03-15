@@ -18,7 +18,7 @@ QUARANTINE_DIR = "database/quarantine/"
 
 # Dangerous file extensions that are commonly used for malware
 DANGEROUS_EXTENSIONS = [
-    '.exe', '.bat', '.cmd', '.msi', '.vbs', '.js', '.jar', '.ps1', '.scr', 
+    '.exe', '.bat', '.cmd', '.msi', '.vbs', '.js', '.jar', '.ps1', '.scr',
     '.dll', '.com', '.pif', '.application', '.gadget', '.msc', '.hta', '.cpl',
     '.msp', '.inf', '.reg', '.sh', '.py', '.pl', '.php'
 ]
@@ -38,7 +38,7 @@ ALLOWED_MIME_TYPES = [
     'text/plain',
     'text/csv',
     'text/markdown',
-    
+
     # Images
     'image/jpeg',
     'image/png',
@@ -47,21 +47,21 @@ ALLOWED_MIME_TYPES = [
     'image/tiff',
     'image/webp',
     'image/svg+xml',
-    
+
     # Audio
     'audio/mpeg',
     'audio/wav',
     'audio/ogg',
     'audio/flac',
     'audio/aac',
-    
+
     # Video
     'video/mp4',
     'video/mpeg',
     'video/quicktime',
     'video/x-msvideo',
     'video/webm',
-    
+
     # Archives (potentially risky but commonly used)
     'application/zip',
     'application/x-rar-compressed',
@@ -70,19 +70,23 @@ ALLOWED_MIME_TYPES = [
     'application/x-7z-compressed'
 ]
 
+
 def ensure_security_dirs():
     """Ensure security directories exist"""
     if not os.path.exists(QUARANTINE_DIR):
         os.makedirs(QUARANTINE_DIR)
 
+
 def is_file_too_large(file_size: int) -> bool:
     """Check if file size exceeds the maximum allowed size"""
     return file_size > MAX_FILE_SIZE
+
 
 def has_dangerous_extension(filename: str) -> bool:
     """Check if file has a dangerous extension"""
     _, ext = os.path.splitext(filename.lower())
     return ext in DANGEROUS_EXTENSIONS
+
 
 def is_mime_type_allowed(file_path: str) -> Tuple[bool, str]:
     """Check if file's MIME type is in the allowed list"""
@@ -94,6 +98,7 @@ def is_mime_type_allowed(file_path: str) -> Tuple[bool, str]:
         print(f"Error checking MIME type: {str(e)}")
         return False, "unknown/error"
 
+
 def calculate_file_hash(file_path: str) -> str:
     """Calculate SHA-256 hash of a file"""
     sha256_hash = hashlib.sha256()
@@ -101,6 +106,7 @@ def calculate_file_hash(file_path: str) -> str:
         for byte_block in iter(lambda: f.read(4096), b""):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
+
 
 def scan_file(file_path: str, filename: str, file_size: int) -> Dict:
     """Scan a file for potential security issues
@@ -133,7 +139,7 @@ def scan_file(file_path: str, filename: str, file_size: int) -> Dict:
     # Determine if file is safe based on basic checks
     if results["size_check"] == "FAILED":
         results["is_safe"] = False
-        results["reason"] = f"File exceeds maximum size limit of {MAX_FILE_SIZE/1024/1024} MB"
+        results["reason"] = f"File exceeds maximum size limit of {MAX_FILE_SIZE / 1024 / 1024} MB"
 
     elif results["extension_check"] == "FAILED":
         results["is_safe"] = False
@@ -173,10 +179,11 @@ def scan_file(file_path: str, filename: str, file_size: int) -> Dict:
     scan_duration = time.time() - scan_start_time
     results["scan_duration"] = scan_duration
 
-    log_info(f"Security scan completed for {filename} in {scan_duration:.2f}s: " +
-             ("PASSED" if results["is_safe"] else f"FAILED - {results['reason']}"))
+    log_info(f"Security scan completed for {filename} in {scan_duration:.2f}s: "
+             + ("PASSED" if results["is_safe"] else f"FAILED - {results['reason']}"))
 
     return results
+
 
 # Initialize security directories
 ensure_security_dirs()

@@ -16,11 +16,12 @@ from error_handling import logger, log_info, log_warning, log_error, Authenticat
 USER_DB_FILE = "database/users.json"
 SESSION_DB_FILE = "database/sessions.json"
 
+
 def ensure_user_db():
     """Ensure the user database exists"""
     if not os.path.exists(os.path.dirname(USER_DB_FILE)):
         os.makedirs(os.path.dirname(USER_DB_FILE))
-    
+
     if not os.path.exists(USER_DB_FILE):
         # Create default admin user
         default_users = {
@@ -33,6 +34,7 @@ def ensure_user_db():
         with open(USER_DB_FILE, "w") as user_db:
             json.dump(default_users, user_db, indent=4)
 
+
 def hash_password(password: str) -> str:
     """Hash a password for storing using bcrypt"""
     # Generate a salt and hash the password
@@ -40,6 +42,7 @@ def hash_password(password: str) -> str:
     salt = bcrypt.gensalt(rounds=12)  # Higher rounds = more secure but slower
     hashed = bcrypt.hashpw(password_bytes, salt)
     return hashed.decode('utf-8')  # Store as string
+
 
 def verify_password(stored_password: str, provided_password: str) -> bool:
     """Verify a password against a stored bcrypt hash"""
@@ -60,6 +63,7 @@ def verify_password(stored_password: str, provided_password: str) -> bool:
     except Exception as e:
         log_error(f"Password verification error: {str(e)}")
         return False
+
 
 def authenticate_user(username: str, password: str, device_id: str = None) -> bool:
     """Authenticate a user with username and password"""
@@ -93,8 +97,9 @@ def authenticate_user(username: str, password: str, device_id: str = None) -> bo
             # Check for account lockout
             if users[username].get("locked_until", 0) > time.time():
                 log_warning(f"Account locked: {username}")
-                raise AuthenticationError("Account is temporarily locked due to too many failed attempts",
-                                         {"locked_until": users[username]["locked_until"]})
+                raise AuthenticationError(
+                    "Account is temporarily locked due to too many failed attempts", {
+                        "locked_until": users[username]["locked_until"]})
 
             # Verify password
             authenticated = verify_password(users[username]["password"], password)
@@ -138,7 +143,9 @@ def authenticate_user(username: str, password: str, device_id: str = None) -> bo
                 with open(USER_DB_FILE, "w") as user_db:
                     json.dump(users, user_db, indent=4)
 
-                log_warning(f"Failed login attempt for {username} (attempt {users[username]['failed_attempts']})")
+                log_warning(
+                    f"Failed login attempt for {username} (attempt {
+                        users[username]['failed_attempts']})")
                 return False
 
         return False
@@ -149,62 +156,65 @@ def authenticate_user(username: str, password: str, device_id: str = None) -> bo
         log_error(f"Authentication error: {str(e)}")
         return False
 
+
 def create_user(username: str, password: str, role: str = "user") -> bool:
     """Create a new user"""
     ensure_user_db()
-    
+
     try:
         with open(USER_DB_FILE, "r") as user_db:
             users = json.load(user_db)
-        
+
         if username in users:
             return False  # User already exists
-        
+
         # Create new user with hashed password
         users[username] = {
             "password": hash_password(password),
             "role": role,
             "created_at": time.time()
         }
-        
+
         with open(USER_DB_FILE, "w") as user_db:
             json.dump(users, user_db, indent=4)
-        
+
         return True
     except Exception as e:
         print(f"Error creating user: {str(e)}")
         return False
 
+
 def delete_user(username: str) -> bool:
     """Delete a user"""
     ensure_user_db()
-    
+
     try:
         with open(USER_DB_FILE, "r") as user_db:
             users = json.load(user_db)
-        
+
         if username not in users:
             return False  # User doesn't exist
-        
+
         # Delete user
         del users[username]
-        
+
         with open(USER_DB_FILE, "w") as user_db:
             json.dump(users, user_db, indent=4)
-        
+
         return True
     except Exception as e:
         print(f"Error deleting user: {str(e)}")
         return False
 
+
 def get_user_role(username: str) -> Optional[str]:
     """Get a user's role"""
     ensure_user_db()
-    
+
     try:
         with open(USER_DB_FILE, "r") as user_db:
             users = json.load(user_db)
-        
+
         if username in users:
             return users[username]["role"]
         return None
@@ -212,14 +222,15 @@ def get_user_role(username: str) -> Optional[str]:
         print(f"Error getting user role: {str(e)}")
         return None
 
+
 def list_users() -> List[Dict]:
     """List all users (without passwords)"""
     ensure_user_db()
-    
+
     try:
         with open(USER_DB_FILE, "r") as user_db:
             users = json.load(user_db)
-        
+
         # Return user info without passwords
         user_list = []
         for username, data in users.items():
@@ -228,55 +239,58 @@ def list_users() -> List[Dict]:
                 "role": data["role"],
                 "created_at": data.get("created_at", 0)
             })
-        
+
         return user_list
     except Exception as e:
         print(f"Error listing users: {str(e)}")
         return []
 
+
 def change_password(username: str, new_password: str) -> bool:
     """Change a user's password"""
     ensure_user_db()
-    
+
     try:
         with open(USER_DB_FILE, "r") as user_db:
             users = json.load(user_db)
-        
+
         if username not in users:
             return False  # User doesn't exist
-        
+
         # Update password
         users[username]["password"] = hash_password(new_password)
-        
+
         with open(USER_DB_FILE, "w") as user_db:
             json.dump(users, user_db, indent=4)
-        
+
         return True
     except Exception as e:
         print(f"Error changing password: {str(e)}")
         return False
 
+
 def change_role(username: str, new_role: str) -> bool:
     """Change a user's role"""
     ensure_user_db()
-    
+
     try:
         with open(USER_DB_FILE, "r") as user_db:
             users = json.load(user_db)
-        
+
         if username not in users:
             return False  # User doesn't exist
-        
+
         # Update role
         users[username]["role"] = new_role
-        
+
         with open(USER_DB_FILE, "w") as user_db:
             json.dump(users, user_db, indent=4)
-        
+
         return True
     except Exception as e:
         print(f"Error changing role: {str(e)}")
         return False
+
 
 # Initialize the user database
 ensure_user_db()

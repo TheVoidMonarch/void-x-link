@@ -1,0 +1,6 @@
+Running simple authentication test...
+Running simple authentication tests...
+Hash password test passed!
+Verify password test passed!
+All tests passed!
+Simple authentication test passed!

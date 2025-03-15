@@ -1,0 +1,37 @@
+Generating test coverage report...
+Running simple tests for coverage...
+Running authentication tests...
+Hash password test passed!
+Verify password test passed!
+Running encryption tests...
+Encrypt/decrypt string test passed!
+Encrypt/decrypt dictionary test passed!
+Running file security tests...
+2025-03-16 00:54:58,003 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:58,005 - voidlink - INFO - ClamAV is available for virus scanning
+is_file_too_large test passed!
+has_dangerous_extension test passed!
+is_mime_type_allowed test passed!
+calculate_file_hash test passed!
+2025-03-16 00:54:58,014 - voidlink - INFO - Starting security scan for file: test.txt
+2025-03-16 00:54:58,015 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:58,015 - voidlink - INFO - No virus found in /var/folders/cm/j2q9dvh11gx05k4xmrcnhttm0000gn/T/tmpmpjikm7_.txt
+2025-03-16 00:54:58,015 - voidlink - INFO - ClamAV version: MockClamAV 0.0.0
+2025-03-16 00:54:58,016 - voidlink - INFO - Security scan completed for test.txt in 0.00s: PASSED
+2025-03-16 00:54:58,017 - voidlink - INFO - Starting security scan for file: test.exe
+2025-03-16 00:54:58,018 - voidlink - WARNING - File quarantined: test.exe -> database/quarantine/test.exe
+2025-03-16 00:54:58,018 - voidlink - INFO - Security scan completed for test.exe in 0.00s: FAILED - File has a potentially dangerous extension
+scan_file test passed!
+
+Coverage Report:
+Name                Stmts   Miss  Cover
+---------------------------------------
+authentication.py     160    130    19%
+encryption.py          50     15    70%
+file_security.py       75     15    80%
+---------------------------------------
+TOTAL                 285    160    44%
+
+Coverage report generated in test_results/coverage
+Open test_results/coverage/index.html in a browser to view the detailed report
+Coverage report generated successfully!

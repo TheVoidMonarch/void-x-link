@@ -1,0 +1,19 @@
+VoidLink Core Functionality Test Results
+=======================================
+
+Test Summary:
+authentication: 3/3 passed (100.0%)
+encryption: 2/2 passed (100.0%)
+file_security: 3/4 passed (75.0%)
+  Errors:
+  - Test failed: scan_file
+file_transfer: 0/2 passed (0.0%)
+  Errors:
+  - Error in ensure_file_dirs: module 'file_transfer' has no attribute 'FILES_DIR'
+  - Error in save_file_metadata: module 'file_transfer' has no attribute 'METADATA_DIR'
+file_transfer_resumable: 0/2 passed (0.0%)
+  Errors:
+  - Error in transfer_state: TransferState.__init__() got an unexpected keyword argument 'transfer_id'
+  - Error in start_resumable_upload: start_resumable_upload() got an unexpected keyword argument 'file_size'
+
+Overall: 8/13 passed (61.5%)

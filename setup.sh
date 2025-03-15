@@ -27,6 +27,11 @@ chmod +x tests/run_tests.py
 chmod +x voidlink_cli.py
 chmod +x run_admin_webui.sh
 chmod +x admin_webui/app.py
+chmod +x test_runner.py
+chmod +x run_automated_tests.sh
+chmod +x fix_syntax_issues.py
+chmod +x fix_all_linting.py
+chmod +x fix_all_issues.sh
 
 # Create necessary directories
 mkdir -p database/files
