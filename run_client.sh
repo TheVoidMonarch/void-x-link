@@ -1,11 +1,18 @@
 #!/bin/bash
-# Script to run the VoidLink client
+# Script to run the VoidLink Client
 
-# Copy the fixed client to the main client file
-cp test_client_fixed.py test_client.py
+# Make sure we're in the virtual environment
+if [ -z "$VIRTUAL_ENV" ]; then
+    echo "Please activate the virtual environment first:"
+    echo "source voidlink-env/bin/activate"
+    exit 1
+fi
 
-# Make it executable
-chmod +x test_client.py
+# Make the client script executable
+chmod +x client.py
+chmod +x run_client.py
+chmod +x simple_encryption.py
 
 # Run the client
-python test_client.py
+echo "Starting VoidLink Client..."
+python run_client.py "$@"

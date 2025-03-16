@@ -94,8 +94,13 @@ def get_device_id():
         return device_id
 
 
+# Global variables
+current_room = "general"
+
+
 def main():
     """Main client function"""
+    global current_room
     print("""
 ╔═══════════════════════════════════════════╗
 ║            VoidLink Test Client           ║
@@ -158,7 +163,27 @@ def main():
 
                     elif message_type == "notification":
                         content = message_data.get("content", "")
-                        print(f"[NOTIFICATION] {content}")
+                        filename = message_data.get("filename")
+                        sender = message_data.get("sender")
+
+                        # Print notification with more emphasis for file transfers
+                        if filename:
+                            is_safe = message_data.get("is_safe", True)
+
+                            if is_safe:
+                                print(f"\n[FILE NOTIFICATION] {content}")
+                                print(f"  From: {sender}")
+                                print(f"  File: {filename}")
+                                print(f"  Use '/download {filename}' to download this file\n")
+                            else:
+                                print(f"\n[FILE SECURITY WARNING] {content}")
+                                print(f"  From: {sender}")
+                                print(f"  File: {filename}")
+                                print(f"  This file has been flagged as potentially unsafe!")
+                                print(
+                                    f"  It has been quarantined by the server and cannot be downloaded.\n")
+                        else:
+                            print(f"[NOTIFICATION] {content}")
 
                     elif message_type == "error":
                         content = message_data.get("content", "")
@@ -190,8 +215,18 @@ def main():
     print("  /exit - Exit the client")
     print("  /users - List connected users")
     print("  /files - List available files")
-    print("  /send <filepath> - Send a file")
+    print("  /send <filepath> [recipient] - Send a file (to a specific user if specified)")
     print("  /history - Show chat history")
+    print("  /rooms - List available chat rooms")
+    print("  /create <room_id> <name> - Create a new chat room")
+    print("  /join <room_id> - Join a chat room")
+    print("  /leave <room_id> - Leave a chat room")
+    print("  /room <room_id> - Get information about a room")
+    print("  /myrooms - List rooms you're a member of")
+    print("  /download <filename> - Download a file from the server")
+    print("  /switch <room_id> - Switch to a different room for messaging")
+    print("\nPrivate messaging:")
+    print("  @username message - Send a private message to a user")
     print("\nType your messages and press Enter to send.")
 
     # Main message loop
@@ -208,8 +243,19 @@ def main():
                 print("  /exit - Exit the client")
                 print("  /users - List connected users")
                 print("  /files - List available files")
-                print("  /send <filepath> - Send a file")
+                print(
+                    "  /send <filepath> [recipient] - Send a file (to a specific user if specified)")
                 print("  /history - Show chat history")
+                print("  /rooms - List available chat rooms")
+                print("  /create <room_id> <name> - Create a new chat room")
+                print("  /join <room_id> - Join a chat room")
+                print("  /leave <room_id> - Leave a chat room")
+                print("  /room <room_id> - Get information about a room")
+                print("  /myrooms - List rooms you're a member of")
+                print("  /download <filename> - Download a file from the server")
+                print("  /switch <room_id> - Switch to a different room for messaging")
+                print("\nPrivate messaging:")
+                print("  @username message - Send a private message to a user")
 
             elif user_input.lower() == "/users":
                 command = {
@@ -239,8 +285,107 @@ def main():
                 encrypted_command = encrypt_message(command)
                 client_socket.send(encrypted_command)
 
+            elif user_input.lower() == "/rooms":
+                command = {
+                    "type": "command",
+                    "command": "list_rooms"
+                }
+                # Directly encrypt the dictionary
+                encrypted_command = encrypt_message(command)
+                client_socket.send(encrypted_command)
+
+            elif user_input.lower() == "/myrooms":
+                command = {
+                    "type": "command",
+                    "command": "my_rooms"
+                }
+                # Directly encrypt the dictionary
+                encrypted_command = encrypt_message(command)
+                client_socket.send(encrypted_command)
+
+            elif user_input.lower().startswith("/create "):
+                # Format: /create room_id Room Name
+                parts = user_input[8:].strip().split(' ', 1)
+                if len(parts) < 2:
+                    print("Usage: /create <room_id> <name>")
+                    continue
+
+                room_id = parts[0]
+                room_name = parts[1]
+
+                command = {
+                    "type": "command",
+                    "command": "create_room",
+                    "room_id": room_id,
+                    "name": room_name,
+                    "description": f"Room created by {username}"
+                }
+                # Directly encrypt the dictionary
+                encrypted_command = encrypt_message(command)
+                client_socket.send(encrypted_command)
+
+            elif user_input.lower().startswith("/join "):
+                room_id = user_input[6:].strip()
+
+                command = {
+                    "type": "command",
+                    "command": "join_room",
+                    "room_id": room_id
+                }
+                # Directly encrypt the dictionary
+                encrypted_command = encrypt_message(command)
+                client_socket.send(encrypted_command)
+
+            elif user_input.lower().startswith("/leave "):
+                room_id = user_input[7:].strip()
+
+                command = {
+                    "type": "command",
+                    "command": "leave_room",
+                    "room_id": room_id
+                }
+                # Directly encrypt the dictionary
+                encrypted_command = encrypt_message(command)
+                client_socket.send(encrypted_command)
+
+            elif user_input.lower().startswith("/room "):
+                room_id = user_input[6:].strip()
+
+                command = {
+                    "type": "command",
+                    "command": "room_info",
+                    "room_id": room_id
+                }
+                # Directly encrypt the dictionary
+                encrypted_command = encrypt_message(command)
+                client_socket.send(encrypted_command)
+
+            elif user_input.lower().startswith("/download "):
+                filename = user_input[10:].strip()
+
+                command = {
+                    "type": "command",
+                    "command": "download_file",
+                    "filename": filename
+                }
+                # Directly encrypt the dictionary
+                encrypted_command = encrypt_message(command)
+                client_socket.send(encrypted_command)
+                print(f"Requesting file download: {filename}...")
+
+            elif user_input.lower().startswith("/switch "):
+                room_id = user_input[8:].strip()
+                # Store the current room in the global variable
+                global current_room
+                current_room = room_id
+                print(f"Switched to room: {room_id}")
+
             elif user_input.lower().startswith("/send "):
-                filepath = user_input[6:].strip()
+                # Format: /send filepath [recipient]
+                parts = user_input[6:].strip().split(' ', 1)
+                filepath = parts[0]
+                recipient = parts[1] if len(parts) > 1 else "all"
+
                 if not os.path.exists(filepath):
                     print(f"File not found: {filepath}")
                     continue
@@ -252,13 +397,15 @@ def main():
                 file_request = {
                     "type": "file_request",
                     "filename": filename,
-                    "filesize": filesize
+                    "filesize": filesize,
+                    "recipient": recipient,
+                    "room": "general"  # Default room
                 }
 
                 # Directly encrypt the dictionary
                 encrypted_request = encrypt_message(file_request)
                 client_socket.send(encrypted_request)
-                print(f"Sending file request for {filename}...")
+                print(f"Sending file request for {filename} to {recipient}...")
 
                 # Wait for server response (handled in receive thread)
                 time.sleep(1)
@@ -290,9 +437,12 @@ def main():
 
             else:
                 # Regular message
+                # Use the global current_room variable
+
                 message = {
                     "type": "message",
                     "content": user_input,
+                    "room": current_room,
                     "timestamp": time.time()
                 }
 

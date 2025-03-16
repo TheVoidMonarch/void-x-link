@@ -1,932 +1,940 @@
 #!/usr/bin/env python3
 """
-VoidLink Server - Secure Terminal-Based Chat and File Transfer Server
+VoidLink Server
+
+A simple server for handling VoidLink client connections over the network.
 """
 
-import socket
-import threading
-import json
 import os
+import sys
+import json
+import socket
+import argparse
+import logging
+import threading
 import time
-import re
-import traceback
-from encryption import encrypt_message, decrypt_message
-from authentication import authenticate_user, get_user_role, list_users
-from storage import save_message, get_chat_history
-from file_transfer import handle_file_transfer, get_file_list, send_file, FILE_STORAGE_DIR
-from file_transfer_resumable import (
-    start_resumable_upload, handle_chunk, complete_resumable_upload,
-    start_resumable_download, send_file_chunk, get_active_transfers, cancel_transfer
-)
-from rooms import get_rooms, create_room, delete_room, join_room, leave_room, get_room_members, get_user_rooms, get_room_info
-from error_handling import (
-    logger, log_info, log_warning, log_error, log_exception,
-    VoidLinkError, AuthenticationError, AuthorizationError, FileTransferError, RoomError
-)
+import uuid
+from datetime import datetime
 
-# Ensure database directory exists
-if not os.path.exists("database"):
-    os.makedirs("database")
+# Add the current directory to the path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-# Load configuration
-CONFIG_FILE = "config.json"
-if not os.path.exists(CONFIG_FILE):
-    # Create default config
-    default_config = {
-        "server_host": "0.0.0.0",
-        "server_port": 52384,
-        "encryption_enabled": True,
-        "storage": {
-            "local": True,
-            "cloud_backup": False
-        }
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('voidlink_server')
+
+# Try to import VoidLink modules
+try:
+    import simple_authentication as authentication
+    import simple_encryption as encryption
+    import file_security
+    import file_transfer
+    VOIDLINK_MODULES_LOADED = True
+    logger.info("VoidLink modules loaded successfully")
+except ImportError as e:
+    logger.warning(f"Some VoidLink modules could not be imported: {e}")
+    logger.warning("Running in demo mode")
+    VOIDLINK_MODULES_LOADED = False
+
+# Constants
+DEFAULT_HOST = '0.0.0.0'  # Listen on all interfaces
+DEFAULT_PORT = 8000
+BUFFER_SIZE = 4096
+MAX_CONNECTIONS = 10
+FILES_DIR = "database/files"
+METADATA_DIR = "database/metadata"
+
+# Demo data
+DEMO_USERS = {
+    "admin": {
+        "password": "admin123",
+        "role": "admin"
+    },
+    "user": {
+        "password": "user123",
+        "role": "user"
+    },
+    "demo": {
+        "password": "password",
+        "role": "user"
     }
-    with open(CONFIG_FILE, "w") as config_file:
-        json.dump(default_config, config_file, indent=4)
-    config = default_config
-else:
-    with open(CONFIG_FILE, "r") as config_file:
-        config = json.load(config_file)
+}
 
-HOST = config["server_host"]
-PORT = config["server_port"]
-clients = {}
-client_locks = {}  # Thread locks for each client
+DEMO_FILES = [
+    {
+        "id": "file1",
+        "name": "Project_Proposal.pdf",
+        "size": "1.2 MB",
+        "date": "2023-03-15",
+        "type": "PDF",
+        "owner": "admin"
+    },
+    {
+        "id": "file2",
+        "name": "Vacation_Photo.jpg",
+        "size": "3.5 MB",
+        "date": "2023-03-14",
+        "type": "Image",
+        "owner": "admin"
+    },
+    {
+        "id": "file3",
+        "name": "Meeting_Notes.docx",
+        "size": "245 KB",
+        "date": "2023-03-12",
+        "type": "Document",
+        "owner": "user"
+    },
+    {
+        "id": "file4",
+        "name": "Budget_2023.xlsx",
+        "size": "1.8 MB",
+        "date": "2023-03-08",
+        "type": "Spreadsheet",
+        "owner": "user"
+    }
+]
 
+# In-memory storage for uploads
+active_uploads = {}
+active_downloads = {}
 
-def send_message(client_socket, message_data):
-    """Send an encrypted message to a client"""
-    try:
-        # Convert message data to JSON string
-        if isinstance(message_data, dict):
-            message_str = json.dumps(message_data)
-        else:
-            message_str = str(message_data)
+class ClientHandler(threading.Thread):
+    """Handler for client connections"""
+    
+    def __init__(self, client_socket, client_address, server):
+        """Initialize the handler"""
+        threading.Thread.__init__(self)
+        self.client_socket = client_socket
+        self.client_address = client_address
+        self.server = server
+        self.username = None
+        self.running = True
+    
+    def run(self):
+        """Handle client connection"""
+        logger.info(f"Client connected: {self.client_address}")
 
-        # Encrypt and send
-        encrypted_message = encrypt_message(message_str)
-        client_socket.send(encrypted_message)
-        return True
-    except Exception as e:
-        print(f"Error sending message: {str(e)}")
-        return False
-
-
-def handle_client(client_socket, addr):
-    """Handle client connection and messages"""
-    username = None
-    try:
-        log_info(f"New connection from {addr}")
-
-        # Authentication phase
         try:
-            auth_data = client_socket.recv(4096)
-            if not auth_data:
-                raise AuthenticationError("No authentication data received")
+            while self.running:
+                # Receive data
+                data = self.client_socket.recv(BUFFER_SIZE)
+                if not data:
+                    break
 
-            auth_json = decrypt_message(auth_data)
-
-            # Make sure we have a dictionary
-            if not isinstance(auth_json, dict):
+                # Parse message
                 try:
-                    auth_json = json.loads(auth_json)
-                except BaseException:
-                    auth_json = {}
-
-            username = auth_json.get("username")
-            password = auth_json.get("password")
-            # Use IP:port as device ID if none provided
-            device_id = auth_json.get("device_id", f"{addr[0]}:{addr[1]}")
-
-            if not username or not password:
-                raise AuthenticationError("Missing username or password",
-                                          {"username_provided": bool(username),
-                                           "password_provided": bool(password)})
-
-            # Authenticate user with device ID
-            if authenticate_user(username, password, device_id):
-                # Authentication successful
-                log_info(f"User {username} authenticated successfully from {addr}")
-                client_locks[username] = threading.Lock()
-                clients[username] = client_socket
-
-                # Send welcome message
-                welcome = {
-                    "type": "system",
-                    "content": f"Welcome to VoidLink, {username}!",
-                    "timestamp": time.time()
-                }
-                send_message(client_socket, welcome)
-
-                # Broadcast user joined
-                join_notification = {
-                    "type": "notification",
-                    "content": f"{username} has joined the chat",
-                    "timestamp": time.time()
-                }
-                broadcast(join_notification, username)
-            else:
-                # Authentication failed
-                log_warning(f"Failed authentication attempt for user {username} from {addr}")
-                error = AuthenticationError("Invalid username or password",
-                                            {"ip": addr[0], "username": username})
-                error_msg = error.to_dict()
-                send_message(client_socket, error_msg)
-                client_socket.close()
-                return
-        except AuthenticationError as e:
-            log_warning(f"Authentication error: {str(e)}")
-            send_message(client_socket, e.to_dict())
-            client_socket.close()
-            return
-        except Exception as e:
-            log_exception(e, "authentication")
-            error_msg = {
-                "type": "error",
-                "code": 500,
-                "message": "Internal server error during authentication"
-            }
-            send_message(client_socket, error_msg)
-            client_socket.close()
-            return
-
-        # Message handling loop
-        while True:
-            try:
-                encrypted_data = client_socket.recv(4096)
-                if not encrypted_data:
-                    break  # Client disconnected
-
-                # Decrypt and parse message
-                message_data = decrypt_message(encrypted_data)
-
-                # Make sure we have a dictionary
-                if not isinstance(message_data, dict):
-                    try:
-                        message_data = json.loads(message_data)
-                    except BaseException:
-                        # If we can't parse it, create a simple message
-                        message_data = {
-                            "type": "message",
-                            "content": str(message_data)
-                        }
-
-                message_type = message_data.get("type", "message")
-
-                if message_type == "message":
-                    # Regular chat message
-                    content = message_data.get("content", "")
-                    timestamp = message_data.get("timestamp", time.time())
-                    room = message_data.get("room", "general")
-
-                    # Check if this is a private message (starts with @username)
-                    private_match = re.match(r'^@(\w+)\s+(.+)$', content)
-
-                    if private_match:
-                        # Private message
-                        recipient = private_match.group(1)
-                        private_content = private_match.group(2)
-
-                        if recipient in clients:
-                            # Save private message
-                            save_message(
-                                username,
-                                private_content,
-                                recipient=recipient,
-                                message_type="private")
-
-                            # Create message object
-                            private_msg = {
-                                "type": "private",
-                                "sender": username,
-                                "content": private_content,
-                                "timestamp": timestamp
-                            }
-
-                            # Send to recipient and sender
-                            broadcast(private_msg, None, recipients=[recipient, username])
-
-                            print(f"Private message from {username} to {recipient}")
-                        else:
-                            # User not online
-                            error_msg = {
-                                "type": "error",
-                                "content": f"User {recipient} is not online."
-                            }
-                            send_message(client_socket, error_msg)
+                    # Try to decrypt the message if encryption is available
+                    if VOIDLINK_MODULES_LOADED:
+                        try:
+                            # Try to decrypt as JSON
+                            decrypted_data = encryption.decrypt_message(data.decode('utf-8'))
+                            if isinstance(decrypted_data, dict):
+                                message = decrypted_data
+                            else:
+                                message = json.loads(decrypted_data)
+                        except Exception:
+                            # If decryption fails, try parsing as plain JSON
+                            message = json.loads(data.decode('utf-8'))
                     else:
-                        # Regular room message
-                        # Save message to storage
-                        save_message(username, content, room=room)
+                        # Parse as plain JSON
+                        message = json.loads(data.decode('utf-8'))
 
-                        # Create message object
-                        message_obj = {
-                            "type": "message",
-                            "sender": username,
-                            "content": content,
-                            "room": room,
-                            "timestamp": timestamp
-                        }
+                    command = message.get("command")
 
-                        # Broadcast to room members
-                        broadcast(message_obj, username, room=room)
-
-                        print(f"Message from {username} in room {room}")
-
-                elif message_type == "file_request":
-                    # Handle file transfer request
-                    filename = message_data.get("filename")
-                    filesize = message_data.get("filesize")
-                    recipient = message_data.get("recipient", "all")  # "all" or username
-                    room = message_data.get("room", "general")
-                    resumable = message_data.get("resumable", False)
-
-                    try:
-                        if resumable:
-                            # Handle resumable file transfer
-                            log_info(
-                                f"Starting resumable file upload for {filename} ({filesize} bytes) from {username}")
-
-                            # Start the upload
-                            upload_info = start_resumable_upload(
-                                client_socket, filename, filesize, username)
-
-                            # The rest of the upload will be handled by chunk messages
-                            # We'll store the recipient and room info for later
-                            upload_info["recipient"] = recipient
-                            upload_info["room"] = room
-
-                        else:
-                            # Handle regular file transfer
-                            log_info(
-                                f"Starting regular file upload for {filename} ({filesize} bytes) from {username}")
-
-                            # Notify client that server is ready to receive
-                            ready_msg = {
-                                "type": "file_ready",
-                                "filename": filename
-                            }
-                            send_message(client_socket, ready_msg)
-
-                            # Handle the file transfer
-                            file_info = handle_file_transfer(client_socket, filename, username)
-
-                    except FileTransferError as e:
-                        error_msg = {
-                            "type": "error",
-                            "content": str(e)
-                        }
-                        send_message(client_socket, error_msg)
+                    # Check if user is authenticated for protected commands
+                    if command not in ["login"] and not self.username:
+                        self.send_response({
+                            "status": "error",
+                            "error": "Authentication required"
+                        })
                         continue
 
-                    if recipient != "all":
-                        # Targeted file transfer
-                        if recipient in clients:
-                            # Notify recipient about the new file
-                            # Check if file passed security scan
-                            is_safe = True
-                            security_message = ""
-                            if "security_scan" in file_info:
-                                is_safe = file_info["security_scan"].get("is_safe", True)
-                                if not is_safe:
-                                    security_message = f" (SECURITY WARNING: {
-                                        file_info['security_scan'].get(
-                                            'reason', 'Unknown issue')})"
-
-                            file_notification = {
-                                "type": "notification",
-                                "content": f"{username} shared file with you: {filename}{security_message}",
-                                "filename": filename,
-                                "sender": username,
-                                "timestamp": time.time(),
-                                "file_info": file_info,
-                                "is_safe": is_safe}
-                            broadcast(file_notification, None, recipients=[recipient, username])
-
-                            # Save as a private message
-                            save_message(
-                                username,
-                                f"Shared file: {filename}",
-                                recipient=recipient,
-                                message_type="file")
-
-                            print(f"File {filename} shared from {username} to {recipient}")
-                        else:
-                            # User not online
-                            error_msg = {
-                                "type": "error",
-                                "content": f"User {recipient} is not online. File saved but not delivered."}
-                            send_message(client_socket, error_msg)
-                    else:
-                        # Room file transfer
-                        # Check if file passed security scan
-                        is_safe = True
-                        security_message = ""
-                        if "security_scan" in file_info:
-                            is_safe = file_info["security_scan"].get("is_safe", True)
-                            if not is_safe:
-                                security_message = f" (SECURITY WARNING: {
-                                    file_info['security_scan'].get(
-                                        'reason', 'Unknown issue')})"
-
-                        file_notification = {
-                            "type": "notification",
-                            "content": f"{username} shared file in {room}: {filename}{security_message}",
-                            "filename": filename,
-                            "sender": username,
-                            "room": room,
-                            "timestamp": time.time(),
-                            "file_info": file_info,
-                            "is_safe": is_safe}
-
-                        # Broadcast to room or all users
-                        if room != "all":
-                            broadcast(file_notification, None, room=room)
-                            # Save as a room message
-                            save_message(
-                                username,
-                                f"Shared file: {filename}",
-                                room=room,
-                                message_type="file")
-                        else:
-                            broadcast(file_notification, None)
-                            # Save as a global message
-                            save_message(username, f"Shared file: {filename}", message_type="file")
-
-                        print(f"File {filename} shared from {username} in {room}")
-
-                elif message_type == "file_chunk":
-                    # Handle a chunk of a resumable file upload
-                    transfer_id = message_data.get("transfer_id")
-                    chunk_index = message_data.get("chunk_index")
-                    chunk_data = message_data.get("chunk_data")
-                    chunk_hash = message_data.get("chunk_hash")
-
-                    if not transfer_id or chunk_index is None or not chunk_data or not chunk_hash:
-                        error_msg = {
-                            "type": "error",
-                            "content": "Missing required chunk information"
-                        }
-                        send_message(client_socket, error_msg)
-                    else:
-                        try:
-                            # Handle the chunk
-                            result = handle_chunk(
-                                client_socket, transfer_id, chunk_index, chunk_data, chunk_hash)
-                            log_info(f"Processed chunk {chunk_index} for transfer {transfer_id}")
-                        except FileTransferError as e:
-                            error_msg = {
-                                "type": "error",
-                                "content": str(e)
-                            }
-                            send_message(client_socket, error_msg)
-
-                elif message_type == "upload_complete":
-                    # Complete a resumable file upload
-                    transfer_id = message_data.get("transfer_id")
-
-                    if not transfer_id:
-                        error_msg = {
-                            "type": "error",
-                            "content": "Missing transfer ID"
-                        }
-                        send_message(client_socket, error_msg)
-                    else:
-                        try:
-                            # Complete the upload
-                            file_info = complete_resumable_upload(client_socket, transfer_id)
-
-                            if "error" in file_info:
-                                error_msg = {
-                                    "type": "error",
-                                    "content": file_info["error"]
-                                }
-                                send_message(client_socket, error_msg)
-                            else:
-                                log_info(f"Completed file upload: {file_info['filename']}")
-
-                                # Get recipient and room info
-                                recipient = file_info.get("recipient", "all")
-                                room = file_info.get("room", "general")
-
-                                # Handle notifications similar to regular file uploads
-                                if recipient != "all":
-                                    # Targeted file transfer
-                                    if recipient in clients:
-                                        # Check if file passed security scan
-                                        is_safe = True
-                                        security_message = ""
-                                        if "security_scan" in file_info:
-                                            is_safe = file_info["security_scan"].get(
-                                                "is_safe", True)
-                                            if not is_safe:
-                                                security_message = f" (SECURITY WARNING: {
-                                                    file_info['security_scan'].get(
-                                                        'reason', 'Unknown issue')})"
-
-                                        # Notify recipient
-                                        file_notification = {
-                                            "type": "notification",
-                                            "content": f"{username} shared file with you: {
-                                                file_info['filename']}{security_message}",
-                                            "filename": file_info['filename'],
-                                            "sender": username,
-                                            "timestamp": time.time(),
-                                            "file_info": file_info,
-                                            "is_safe": is_safe}
-                                        broadcast(
-                                            file_notification, None, recipients=[
-                                                recipient, username])
-                                    else:
-                                        # User not online
-                                        error_msg = {
-                                            "type": "error", "content": f"User {recipient} is not online. File saved but not delivered."}
-                                        send_message(client_socket, error_msg)
-                                else:
-                                    # Room file transfer
-                                    # Check if file passed security scan
-                                    is_safe = True
-                                    security_message = ""
-                                    if "security_scan" in file_info:
-                                        is_safe = file_info["security_scan"].get("is_safe", True)
-                                        if not is_safe:
-                                            security_message = f" (SECURITY WARNING: {
-                                                file_info['security_scan'].get(
-                                                    'reason', 'Unknown issue')})"
-
-                                    # Notify room
-                                    file_notification = {
-                                        "type": "notification",
-                                        "content": f"{username} shared file in {room}: {
-                                            file_info['filename']}{security_message}",
-                                        "filename": file_info['filename'],
-                                        "sender": username,
-                                        "room": room,
-                                        "timestamp": time.time(),
-                                        "file_info": file_info,
-                                        "is_safe": is_safe}
-
-                                    # Broadcast to room or all users
-                                    if room != "all":
-                                        broadcast(file_notification, None, room=room)
-                                    else:
-                                        broadcast(file_notification, None)
-                        except FileTransferError as e:
-                            error_msg = {
-                                "type": "error",
-                                "content": str(e)
-                            }
-                            send_message(client_socket, error_msg)
-
-                elif message_type == "chunk_request":
-                    # Handle a request for a chunk of a file download
-                    transfer_id = message_data.get("transfer_id")
-                    chunk_index = message_data.get("chunk_index")
-
-                    if not transfer_id or chunk_index is None:
-                        error_msg = {
-                            "type": "error",
-                            "content": "Missing required chunk information"
-                        }
-                        send_message(client_socket, error_msg)
-                    else:
-                        try:
-                            # Get the filename from the transfer ID
-                            filename = transfer_id.split("_")[1] if "_" in transfer_id else ""
-
-                            # Send the chunk
-                            result = send_file_chunk(
-                                client_socket, transfer_id, filename, chunk_index)
-
-                            if not result.get("success", False):
-                                error_msg = {
-                                    "type": "error",
-                                    "content": result.get("error", "Unknown error sending chunk")
-                                }
-                                send_message(client_socket, error_msg)
-                            elif result.get("eof", False):
-                                # End of file reached
-                                eof_msg = {
-                                    "type": "download_complete",
-                                    "transfer_id": transfer_id,
-                                    "filename": filename
-                                }
-                                send_message(client_socket, eof_msg)
-                        except FileTransferError as e:
-                            error_msg = {
-                                "type": "error",
-                                "content": str(e)
-                            }
-                            send_message(client_socket, error_msg)
-
-                elif message_type == "command":
-                    # Handle special commands
-                    command = message_data.get("command")
-
-                    if command == "list_users":
-                        # Check if user has permission
-                        user_role = get_user_role(username)
-                        if user_role == "admin":
-                            # Admin can see all user details
-                            user_list = list_users()
-                            response = {
-                                "type": "command_response",
-                                "command": "list_users",
-                                "data": user_list
-                            }
-                        else:
-                            # Regular users can only see online users
-                            user_list = list(clients.keys())
-                            response = {
-                                "type": "command_response",
-                                "command": "list_users",
-                                "data": user_list
-                            }
-                        send_message(client_socket, response)
-
+                    # Handle command
+                    if command == "login":
+                        self.handle_login(message)
+                    elif command == "logout":
+                        self.handle_logout()
                     elif command == "list_files":
-                        files = get_file_list()
-                        response = {
-                            "type": "command_response",
-                            "command": "list_files",
-                            "data": files
-                        }
-                        send_message(client_socket, response)
-
-                    elif command == "history":
-                        # Get chat history
-                        limit = message_data.get("limit", 50)
-                        history = get_chat_history(limit=limit)
-                        response = {
-                            "type": "command_response",
-                            "command": "history",
-                            "data": history
-                        }
-                        send_message(client_socket, response)
-
-                    elif command == "list_rooms":
-                        # List available rooms
-                        rooms = get_rooms()
-                        room_list = []
-                        for room_id, room_data in rooms.items():
-                            room_list.append({
-                                "id": room_id,
-                                "name": room_data["name"],
-                                "description": room_data["description"],
-                                "members": len(room_data["members"])
-                            })
-
-                        response = {
-                            "type": "command_response",
-                            "command": "list_rooms",
-                            "data": room_list
-                        }
-                        send_message(client_socket, response)
-
-                    elif command == "create_room":
-                        # Create a new room
-                        room_id = message_data.get("room_id")
-                        room_name = message_data.get("name", room_id)
-                        room_desc = message_data.get("description", "")
-
-                        if not room_id:
-                            error_msg = {
-                                "type": "error",
-                                "content": "Room ID is required."
-                            }
-                            send_message(client_socket, error_msg)
-                        elif not re.match(r'^[a-zA-Z0-9_-]+$', room_id):
-                            error_msg = {
-                                "type": "error",
-                                "content": "Room ID can only contain letters, numbers, underscores, and hyphens."}
-                            send_message(client_socket, error_msg)
-                        else:
-                            success = create_room(room_id, room_name, room_desc, username)
-
-                            if success:
-                                response = {
-                                    "type": "command_response",
-                                    "command": "create_room",
-                                    "data": {
-                                        "success": True,
-                                        "room_id": room_id
-                                    }
-                                }
-                                send_message(client_socket, response)
-
-                                # Notify all users about the new room
-                                notification = {
-                                    "type": "notification",
-                                    "content": f"{username} created a new room: {room_name}"
-                                }
-                                broadcast(notification, None)
-                            else:
-                                error_msg = {
-                                    "type": "error",
-                                    "content": f"Failed to create room {room_id}. It may already exist."}
-                                send_message(client_socket, error_msg)
-
-                    elif command == "join_room":
-                        # Join a room
-                        room_id = message_data.get("room_id")
-
-                        if not room_id:
-                            error_msg = {
-                                "type": "error",
-                                "content": "Room ID is required."
-                            }
-                            send_message(client_socket, error_msg)
-                        else:
-                            success = join_room(room_id, username)
-
-                            if success:
-                                room_info = get_room_info(room_id)
-                                response = {
-                                    "type": "command_response",
-                                    "command": "join_room",
-                                    "data": {
-                                        "success": True,
-                                        "room_id": room_id,
-                                        "room_name": room_info["name"]
-                                    }
-                                }
-                                send_message(client_socket, response)
-
-                                # Notify room members
-                                notification = {
-                                    "type": "notification",
-                                    "content": f"{username} joined the room",
-                                    "room": room_id
-                                }
-                                broadcast(notification, None, room=room_id)
-                            else:
-                                error_msg = {
-                                    "type": "error",
-                                    "content": f"Failed to join room {room_id}. It may not exist."
-                                }
-                                send_message(client_socket, error_msg)
-
-                    elif command == "leave_room":
-                        # Leave a room
-                        room_id = message_data.get("room_id")
-
-                        if not room_id:
-                            error_msg = {
-                                "type": "error",
-                                "content": "Room ID is required."
-                            }
-                            send_message(client_socket, error_msg)
-                        else:
-                            success = leave_room(room_id, username)
-
-                            if success:
-                                response = {
-                                    "type": "command_response",
-                                    "command": "leave_room",
-                                    "data": {
-                                        "success": True,
-                                        "room_id": room_id
-                                    }
-                                }
-                                send_message(client_socket, response)
-
-                                # Notify room members
-                                notification = {
-                                    "type": "notification",
-                                    "content": f"{username} left the room",
-                                    "room": room_id
-                                }
-                                broadcast(notification, None, room=room_id)
-                            else:
-                                error_msg = {
-                                    "type": "error",
-                                    "content": f"Failed to leave room {room_id}. It may not exist or you can't leave the general room."}
-                                send_message(client_socket, error_msg)
-
-                    elif command == "room_info":
-                        # Get room information
-                        room_id = message_data.get("room_id", "general")
-                        room_info = get_room_info(room_id)
-
-                        if room_info:
-                            response = {
-                                "type": "command_response",
-                                "command": "room_info",
-                                "data": room_info
-                            }
-                            send_message(client_socket, response)
-                        else:
-                            error_msg = {
-                                "type": "error",
-                                "content": f"Room {room_id} not found."
-                            }
-                            send_message(client_socket, error_msg)
-
-                    elif command == "my_rooms":
-                        # Get rooms the user is a member of
-                        user_rooms = get_user_rooms(username)
-                        response = {
-                            "type": "command_response",
-                            "command": "my_rooms",
-                            "data": user_rooms
-                        }
-                        send_message(client_socket, response)
-
+                        self.handle_list_files()
+                    elif command == "start_upload":
+                        self.handle_start_upload(message)
+                    elif command == "upload_chunk":
+                        self.handle_upload_chunk(message)
+                    elif command == "complete_upload":
+                        self.handle_complete_upload(message)
                     elif command == "download_file":
-                        # Download a file
-                        filename = message_data.get("filename")
-                        resumable = message_data.get("resumable", False)
-                        start_position = message_data.get("start_position", 0)
+                        self.handle_download_file(message)
+                    elif command == "download_chunk":
+                        self.handle_download_chunk(message)
+                    elif command == "share_file":
+                        self.handle_share_file(message)
+                    elif command == "delete_file":
+                        self.handle_delete_file(message)
+                    else:
+                        self.send_response({
+                            "status": "error",
+                            "error": f"Unknown command: {command}"
+                        })
 
-                        if not filename:
-                            error_msg = {
-                                "type": "error",
-                                "content": "Filename is required."
-                            }
-                            send_message(client_socket, error_msg)
-                        else:
-                            try:
-                                if resumable:
-                                    # Start resumable download
-                                    log_info(
-                                        f"Starting resumable download of {filename} for {username} from position {start_position}")
-                                    result = start_resumable_download(
-                                        client_socket, filename, start_position)
+                except json.JSONDecodeError:
+                    self.send_response({
+                        "status": "error",
+                        "error": "Invalid JSON message"
+                    })
+                except Exception as e:
+                    logger.error(f"Error handling message: {e}")
+                    self.send_response({
+                        "status": "error",
+                        "error": f"Internal server error: {str(e)}"
+                    })
 
-                                    # Wait for client to request chunks
-                                    # (Handled in the message loop)
-                                else:
-                                    # Regular download
-                                    log_info(
-                                        f"Starting regular download of {filename} for {username}")
-                                    # Notify client that server is ready to send
-                                    ready_msg = {
-                                        "type": "file_download",
-                                        "filename": filename,
-                                        "status": "ready"
-                                    }
-                                    send_message(client_socket, ready_msg)
+        except socket.error as e:
+            logger.error(f"Socket error: {e}")
 
-                                    # Send the file
-                                    success = send_file(client_socket, filename)
+        finally:
+            # Clean up
+            self.client_socket.close()
+            logger.info(f"Client disconnected: {self.client_address}")
 
-                                    if success:
-                                        log_info(f"File {filename} sent to {username}")
-                                    else:
-                                        error_msg = {
-                                            "type": "error",
-                                            "content": f"Failed to send file {filename}."
-                                        }
-                                        send_message(client_socket, error_msg)
-                            except FileTransferError as e:
-                                error_msg = {
-                                    "type": "error",
-                                    "content": str(e)
-                                }
-                                send_message(client_socket, error_msg)
+    def send_response(self, response):
+        """Send a response to the client"""
+        try:
+            # Convert response to JSON
+            json_response = json.dumps(response)
 
-                    elif command == "active_transfers":
-                        # Get active transfers
-                        transfers = get_active_transfers()
-                        response = {
-                            "type": "command_response",
-                            "command": "active_transfers",
-                            "data": transfers
-                        }
-                        send_message(client_socket, response)
-
-                    elif command == "cancel_transfer":
-                        # Cancel a transfer
-                        transfer_id = message_data.get("transfer_id")
-                        if not transfer_id:
-                            error_msg = {
-                                "type": "error",
-                                "content": "Transfer ID is required."
-                            }
-                            send_message(client_socket, error_msg)
-                        else:
-                            success = cancel_transfer(transfer_id)
-                            response = {
-                                "type": "command_response",
-                                "command": "cancel_transfer",
-                                "data": {
-                                    "success": success,
-                                    "transfer_id": transfer_id
-                                }
-                            }
-                            send_message(client_socket, response)
-
-            except json.JSONDecodeError:
-                error_msg = {
-                    "type": "error",
-                    "content": "Invalid message format"
-                }
-                send_message(client_socket, error_msg)
-
-            except Exception as e:
-                print(f"Error processing message from {username}: {str(e)}")
-                error_msg = {
-                    "type": "error",
-                    "content": f"Server error: {str(e)}"
-                }
-                send_message(client_socket, error_msg)
-
-    except socket.error as e:
-        log_error(f"Socket error with connection {addr}: {str(e)}")
-    except json.JSONDecodeError as e:
-        log_error(f"JSON decode error with connection {addr}: {str(e)}")
-    except Exception as e:
-        log_exception(e, f"connection {addr}")
-
-    finally:
-        # Clean up when client disconnects
-        if username in clients:
-            with client_locks.get(username, threading.Lock()):
-                del clients[username]
-                if username in client_locks:
-                    del client_locks[username]
-
-            # Notify other users
-            leave_notification = {
-                "type": "notification",
-                "content": f"{username} has left the chat",
-                "timestamp": time.time()
-            }
-            broadcast(leave_notification, None)
-            log_info(f"User {username} disconnected from {addr}")
-
-        client_socket.close()
-        log_info(f"Connection closed: {addr}")
-
-
-def broadcast(message, exclude_user=None, room=None, recipients=None):
-    """Broadcast a message to clients
-
-    Args:
-        message: The message to broadcast
-        exclude_user: User to exclude from broadcast (usually the sender)
-        room: If specified, only broadcast to users in this room
-        recipients: If specified, only broadcast to these users
-    """
-    message_str = json.dumps(message) if isinstance(message, dict) else str(message)
-    encrypted_message = encrypt_message(message_str)
-
-    # Determine target users
-    target_users = []
-
-    if recipients:
-        # Send to specific recipients
-        target_users = recipients
-    elif room:
-        # Send to users in a specific room
-        target_users = get_room_members(room)
-    else:
-        # Send to all connected users
-        target_users = list(clients.keys())
-
-    # Send the message to each target user
-    for username in target_users:
-        if username in clients and (exclude_user is None or username != exclude_user):
+            # Encrypt if encryption is available
+            if VOIDLINK_MODULES_LOADED:
+                try:
+                    encrypted_response = encryption.encrypt_message(json_response)
+                    self.client_socket.sendall(encrypted_response.encode('utf-8'))
+                except Exception as e:
+                    logger.error(f"Encryption error: {e}")
+                    # Fall back to unencrypted
+                    self.client_socket.sendall(json_response.encode('utf-8'))
+            else:
+                # Send unencrypted
+                self.client_socket.sendall(json_response.encode('utf-8'))
+        except socket.error as e:
+            logger.error(f"Error sending response: {e}")
+            self.running = False
+    
+    def handle_login(self, message):
+        """Handle login command"""
+        data = message.get("data", {})
+        username = data.get("username")
+        password = data.get("password")
+        
+        if not username or not password:
+            self.send_response({
+                "status": "error",
+                "error": "Username and password are required"
+            })
+            return
+        
+        # Authenticate user
+        if VOIDLINK_MODULES_LOADED:
             try:
-                with client_locks.get(username, threading.Lock()):
-                    clients[username].send(encrypted_message)
+                success = authentication.authenticate_user(username, password)
+                if success:
+                    self.username = username
+                    self.send_response({
+                        "status": "success",
+                        "message": "Login successful"
+                    })
+                else:
+                    self.send_response({
+                        "status": "error",
+                        "error": "Invalid username or password"
+                    })
             except Exception as e:
-                print(f"Error broadcasting to {username}: {str(e)}")
-                # Client connection might be broken, will be cleaned up in its own thread
+                logger.error(f"Authentication error: {e}")
+                self.send_response({
+                    "status": "error",
+                    "error": f"Authentication error: {str(e)}"
+                })
+        else:
+            # Demo mode
+            if username in DEMO_USERS and DEMO_USERS[username]["password"] == password:
+                self.username = username
+                self.send_response({
+                    "status": "success",
+                    "message": "Login successful"
+                })
+            else:
+                self.send_response({
+                    "status": "error",
+                    "error": "Invalid username or password"
+                })
+    
+    def handle_logout(self):
+        """Handle logout command"""
+        self.username = None
+        self.send_response({
+            "status": "success",
+            "message": "Logout successful"
+        })
+    
+    def handle_list_files(self):
+        """Handle list_files command"""
+        if VOIDLINK_MODULES_LOADED:
+            try:
+                # Use actual file_transfer module
+                files = file_transfer.get_file_list(self.username)
+                self.send_response({
+                    "status": "success",
+                    "files": files
+                })
+            except Exception as e:
+                logger.error(f"Error listing files: {e}")
+                self.send_response({
+                    "status": "error",
+                    "error": f"Error listing files: {str(e)}"
+                })
+        else:
+            # Demo mode
+            files = [f for f in DEMO_FILES if f["owner"] == self.username]
+            self.send_response({
+                "status": "success",
+                "files": files
+            })
+    
+    def handle_start_upload(self, message):
+        """Handle start_upload command"""
+        data = message.get("data", {})
+        filename = data.get("filename")
+        size = data.get("size")
+        
+        if not filename or size is None:
+            self.send_response({
+                "status": "error",
+                "error": "Filename and size are required"
+            })
+            return
+        
+        # Generate upload ID
+        upload_id = str(uuid.uuid4())
+        
+        # Create upload record
+        active_uploads[upload_id] = {
+            "filename": filename,
+            "size": size,
+            "uploader": self.username,
+            "chunks": {},
+            "start_time": time.time()
+        }
+        
+        self.send_response({
+            "status": "ready",
+            "upload_id": upload_id,
+            "message": "Ready to receive file"
+        })
+    
+    def handle_upload_chunk(self, message):
+        """Handle upload_chunk command"""
+        data = message.get("data", {})
+        upload_id = data.get("upload_id")
+        chunk_index = data.get("chunk_index")
+        chunk_data_hex = data.get("chunk_data")
+        
+        if not upload_id or chunk_index is None or not chunk_data_hex:
+            self.send_response({
+                "status": "error",
+                "error": "Upload ID, chunk index, and chunk data are required"
+            })
+            return
+        
+        # Check if upload exists
+        if upload_id not in active_uploads:
+            self.send_response({
+                "status": "error",
+                "error": "Invalid upload ID"
+            })
+            return
+        
+        # Check if uploader matches
+        upload = active_uploads[upload_id]
+        if upload["uploader"] != self.username:
+            self.send_response({
+                "status": "error",
+                "error": "You are not the uploader of this file"
+            })
+            return
+        
+        # Convert hex to bytes
+        try:
+            chunk_data = bytes.fromhex(chunk_data_hex)
+        except ValueError:
+            self.send_response({
+                "status": "error",
+                "error": "Invalid chunk data format"
+            })
+            return
+        
+        # Store chunk
+        upload["chunks"][chunk_index] = chunk_data
+        
+        self.send_response({
+            "status": "success",
+            "message": f"Chunk {chunk_index} received"
+        })
+    
+    def handle_complete_upload(self, message):
+        """Handle complete_upload command"""
+        data = message.get("data", {})
+        upload_id = data.get("upload_id")
+        
+        if not upload_id:
+            self.send_response({
+                "status": "error",
+                "error": "Upload ID is required"
+            })
+            return
+        
+        # Check if upload exists
+        if upload_id not in active_uploads:
+            self.send_response({
+                "status": "error",
+                "error": "Invalid upload ID"
+            })
+            return
+        
+        # Check if uploader matches
+        upload = active_uploads[upload_id]
+        if upload["uploader"] != self.username:
+            self.send_response({
+                "status": "error",
+                "error": "You are not the uploader of this file"
+            })
+            return
+        
+        # Ensure directories exist
+        os.makedirs(FILES_DIR, exist_ok=True)
+        os.makedirs(METADATA_DIR, exist_ok=True)
+        
+        # Generate file ID
+        file_id = str(uuid.uuid4())
+        
+        # Determine file path
+        file_path = os.path.join(FILES_DIR, file_id)
+        
+        # Write file
+        try:
+            with open(file_path, 'wb') as f:
+                # Sort chunks by index
+                sorted_chunks = sorted(upload["chunks"].items(), key=lambda x: x[0])
+                for _, chunk_data in sorted_chunks:
+                    f.write(chunk_data)
+            
+            # Create metadata
+            metadata = {
+                "id": file_id,
+                "name": upload["filename"],
+                "size": upload["size"],
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "type": os.path.splitext(upload["filename"])[1][1:].upper() or "Unknown",
+                "owner": self.username,
+                "upload_time": time.time(),
+                "shared_with": []
+            }
+            
+            # Save metadata
+            metadata_path = os.path.join(METADATA_DIR, f"{file_id}.json")
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f)
+            
+            # Add to demo files (for demo mode)
+            if not VOIDLINK_MODULES_LOADED:
+                size_str = f"{upload['size']} bytes"
+                if upload['size'] >= 1024 * 1024:
+                    size_str = f"{upload['size'] / (1024 * 1024):.1f} MB"
+                elif upload['size'] >= 1024:
+                    size_str = f"{upload['size'] / 1024:.1f} KB"
+                
+                DEMO_FILES.append({
+                    "id": file_id,
+                    "name": upload["filename"],
+                    "size": size_str,
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "type": os.path.splitext(upload["filename"])[1][1:].upper() or "Unknown",
+                    "owner": self.username
+                })
+            
+            # Clean up
+            del active_uploads[upload_id]
+            
+            self.send_response({
+                "status": "success",
+                "file_id": file_id,
+                "message": "File uploaded successfully"
+            })
+        
+        except Exception as e:
+            logger.error(f"Error completing upload: {e}")
+            self.send_response({
+                "status": "error",
+                "error": f"Error completing upload: {str(e)}"
+            })
+    
+    def handle_download_file(self, message):
+        """Handle download_file command"""
+        data = message.get("data", {})
+        file_id = data.get("file_id")
+        
+        if not file_id:
+            self.send_response({
+                "status": "error",
+                "error": "File ID is required"
+            })
+            return
+        
+        # Find file
+        if VOIDLINK_MODULES_LOADED:
+            try:
+                # Use actual file_transfer module
+                metadata = file_transfer.get_file_metadata(file_id)
+                if not metadata:
+                    self.send_response({
+                        "status": "error",
+                        "error": "File not found"
+                    })
+                    return
+                
+                # Check if user has access
+                if metadata["owner"] != self.username and self.username not in metadata.get("shared_with", []):
+                    self.send_response({
+                        "status": "error",
+                        "error": "You do not have access to this file"
+                    })
+                    return
+                
+                # Get file path
+                file_path = os.path.join(FILES_DIR, file_id)
+                if not os.path.exists(file_path):
+                    self.send_response({
+                        "status": "error",
+                        "error": "File not found on server"
+                    })
+                    return
+                
+                # Create download record
+                download_id = str(uuid.uuid4())
+                active_downloads[download_id] = {
+                    "file_id": file_id,
+                    "file_path": file_path,
+                    "filename": metadata["name"],
+                    "size": os.path.getsize(file_path),
+                    "downloader": self.username,
+                    "start_time": time.time()
+                }
+                
+                self.send_response({
+                    "status": "ready",
+                    "download_id": download_id,
+                    "filename": metadata["name"],
+                    "size": os.path.getsize(file_path),
+                    "message": "Ready to send file"
+                })
+            
+            except Exception as e:
+                logger.error(f"Error starting download: {e}")
+                self.send_response({
+                    "status": "error",
+                    "error": f"Error starting download: {str(e)}"
+                })
+        
+        else:
+            # Demo mode
+            file = next((f for f in DEMO_FILES if f["id"] == file_id), None)
+            if not file:
+                self.send_response({
+                    "status": "error",
+                    "error": "File not found"
+                })
+                return
+            
+            # Check if user has access
+            if file["owner"] != self.username:
+                self.send_response({
+                    "status": "error",
+                    "error": "You do not have access to this file"
+                })
+                return
+            
+            # Create dummy file content
+            dummy_content = f"This is a dummy file content for {file['name']}".encode('utf-8')
+            
+            # Create download record
+            download_id = str(uuid.uuid4())
+            active_downloads[download_id] = {
+                "file_id": file_id,
+                "dummy_content": dummy_content,
+                "filename": file["name"],
+                "size": len(dummy_content),
+                "downloader": self.username,
+                "start_time": time.time()
+            }
+            
+            self.send_response({
+                "status": "ready",
+                "download_id": download_id,
+                "filename": file["name"],
+                "size": len(dummy_content),
+                "message": "Ready to send file"
+            })
+    
+    def handle_download_chunk(self, message):
+        """Handle download_chunk command"""
+        data = message.get("data", {})
+        file_id = data.get("file_id")
+        chunk_index = data.get("chunk_index")
+        
+        if not file_id or chunk_index is None:
+            self.send_response({
+                "status": "error",
+                "error": "File ID and chunk index are required"
+            })
+            return
+        
+        # Find download
+        download = next((d for d in active_downloads.values() if d["file_id"] == file_id and d["downloader"] == self.username), None)
+        if not download:
+            self.send_response({
+                "status": "error",
+                "error": "Download not found"
+            })
+            return
+        
+        # Get chunk
+        chunk_size = 1024 * 1024  # 1 MB chunks
+        
+        if VOIDLINK_MODULES_LOADED:
+            try:
+                # Read chunk from file
+                with open(download["file_path"], 'rb') as f:
+                    f.seek(chunk_index * chunk_size)
+                    chunk_data = f.read(chunk_size)
+                
+                if not chunk_data:
+                    self.send_response({
+                        "status": "error",
+                        "error": "End of file reached"
+                    })
+                    return
+                
+                self.send_response({
+                    "status": "success",
+                    "chunk_index": chunk_index,
+                    "chunk_data": chunk_data.hex(),
+                    "message": f"Chunk {chunk_index} sent"
+                })
+            
+            except Exception as e:
+                logger.error(f"Error sending chunk: {e}")
+                self.send_response({
+                    "status": "error",
+                    "error": f"Error sending chunk: {str(e)}"
+                })
+        
+        else:
+            # Demo mode
+            dummy_content = download["dummy_content"]
+            start = chunk_index * chunk_size
+            end = min(start + chunk_size, len(dummy_content))
+            
+            if start >= len(dummy_content):
+                self.send_response({
+                    "status": "error",
+                    "error": "End of file reached"
+                })
+                return
+            
+            chunk_data = dummy_content[start:end]
+            
+            self.send_response({
+                "status": "success",
+                "chunk_index": chunk_index,
+                "chunk_data": chunk_data.hex(),
+                "message": f"Chunk {chunk_index} sent"
+            })
+    
+    def handle_share_file(self, message):
+        """Handle share_file command"""
+        data = message.get("data", {})
+        file_id = data.get("file_id")
+        recipient = data.get("recipient")
+        
+        if not file_id or not recipient:
+            self.send_response({
+                "status": "error",
+                "error": "File ID and recipient are required"
+            })
+            return
+        
+        if VOIDLINK_MODULES_LOADED:
+            try:
+                # Use actual file_transfer module
+                metadata = file_transfer.get_file_metadata(file_id)
+                if not metadata:
+                    self.send_response({
+                        "status": "error",
+                        "error": "File not found"
+                    })
+                    return
+                
+                # Check if user is the owner
+                if metadata["owner"] != self.username:
+                    self.send_response({
+                        "status": "error",
+                        "error": "You are not the owner of this file"
+                    })
+                    return
+                
+                # Check if recipient exists
+                if not authentication.user_exists(recipient):
+                    self.send_response({
+                        "status": "error",
+                        "error": "Recipient not found"
+                    })
+                    return
+                
+                # Share file
+                shared_with = metadata.get("shared_with", [])
+                if recipient not in shared_with:
+                    shared_with.append(recipient)
+                    metadata["shared_with"] = shared_with
+                    
+                    # Save metadata
+                    metadata_path = os.path.join(METADATA_DIR, f"{file_id}.json")
+                    with open(metadata_path, 'w') as f:
+                        json.dump(metadata, f)
+                
+                # Generate share link
+                share_link = f"https://voidlink.example.com/share/{file_id}"
+                
+                self.send_response({
+                    "status": "success",
+                    "share_link": share_link,
+                    "message": f"File shared with {recipient}"
+                })
+            
+            except Exception as e:
+                logger.error(f"Error sharing file: {e}")
+                self.send_response({
+                    "status": "error",
+                    "error": f"Error sharing file: {str(e)}"
+                })
+        
+        else:
+            # Demo mode
+            file = next((f for f in DEMO_FILES if f["id"] == file_id), None)
+            if not file:
+                self.send_response({
+                    "status": "error",
+                    "error": "File not found"
+                })
+                return
+            
+            # Check if user is the owner
+            if file["owner"] != self.username:
+                self.send_response({
+                    "status": "error",
+                    "error": "You are not the owner of this file"
+                })
+                return
+            
+            # Check if recipient exists
+            if recipient not in DEMO_USERS:
+                self.send_response({
+                    "status": "error",
+                    "error": "Recipient not found"
+                })
+                return
+            
+            # Generate share link
+            share_link = f"https://voidlink.example.com/share/{file_id}"
+            
+            self.send_response({
+                "status": "success",
+                "share_link": share_link,
+                "message": f"File shared with {recipient}"
+            })
+    
+    def handle_delete_file(self, message):
+        """Handle delete_file command"""
+        data = message.get("data", {})
+        file_id = data.get("file_id")
+        
+        if not file_id:
+            self.send_response({
+                "status": "error",
+                "error": "File ID is required"
+            })
+            return
+        
+        if VOIDLINK_MODULES_LOADED:
+            try:
+                # Use actual file_transfer module
+                metadata = file_transfer.get_file_metadata(file_id)
+                if not metadata:
+                    self.send_response({
+                        "status": "error",
+                        "error": "File not found"
+                    })
+                    return
+                
+                # Check if user is the owner
+                if metadata["owner"] != self.username:
+                    self.send_response({
+                        "status": "error",
+                        "error": "You are not the owner of this file"
+                    })
+                    return
+                
+                # Delete file
+                file_path = os.path.join(FILES_DIR, file_id)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                
+                # Delete metadata
+                metadata_path = os.path.join(METADATA_DIR, f"{file_id}.json")
+                if os.path.exists(metadata_path):
+                    os.remove(metadata_path)
+                
+                self.send_response({
+                    "status": "success",
+                    "message": "File deleted successfully"
+                })
+            
+            except Exception as e:
+                logger.error(f"Error deleting file: {e}")
+                self.send_response({
+                    "status": "error",
+                    "error": f"Error deleting file: {str(e)}"
+                })
+        
+        else:
+            # Demo mode
+            global DEMO_FILES
+            file = next((f for f in DEMO_FILES if f["id"] == file_id), None)
+            if not file:
+                self.send_response({
+                    "status": "error",
+                    "error": "File not found"
+                })
+                return
+            
+            # Check if user is the owner
+            if file["owner"] != self.username:
+                self.send_response({
+                    "status": "error",
+                    "error": "You are not the owner of this file"
+                })
+                return
+            
+            # Remove file from list
+            DEMO_FILES = [f for f in DEMO_FILES if f["id"] != file_id]
+            
+            self.send_response({
+                "status": "success",
+                "message": "File deleted successfully"
+            })
 
+class VoidLinkServer:
+    """Server for handling VoidLink client connections"""
+    
+    def __init__(self, host=DEFAULT_HOST, port=DEFAULT_PORT):
+        """Initialize the server"""
+        self.host = host
+        self.port = port
+        self.socket = None
+        self.running = False
+        self.clients = []
+    
+    def start(self):
+        """Start the server"""
+        try:
+            # Create socket
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.socket.bind((self.host, self.port))
+            self.socket.listen(MAX_CONNECTIONS)
+            
+            self.running = True
+            logger.info(f"VoidLink server started on {self.host}:{self.port}")
+            
+            # Accept connections
+            while self.running:
+                try:
+                    client_socket, client_address = self.socket.accept()
+                    
+                    # Create handler thread
+                    handler = ClientHandler(client_socket, client_address, self)
+                    handler.daemon = True
+                    handler.start()
+                    
+                    # Add to clients list
+                    self.clients.append(handler)
+                    
+                    # Clean up finished clients
+                    self.clients = [c for c in self.clients if c.is_alive()]
+                
+                except socket.error as e:
+                    if self.running:
+                        logger.error(f"Socket error: {e}")
+                    break
+            
+            logger.info("Server stopped")
+        
+        except socket.error as e:
+            logger.error(f"Failed to start server: {e}")
+            return False
+        
+        return True
+    
+    def stop(self):
+        """Stop the server"""
+        self.running = False
+        
+        # Close socket
+        if self.socket:
+            self.socket.close()
+            self.socket = None
+        
+        # Wait for clients to finish
+        for client in self.clients:
+            client.running = False
+            client.join(1)
+        
+        logger.info("Server stopped")
 
-def start_server():
-    """Start the VoidLink server"""
+def main():
+    """Main function"""
+    parser = argparse.ArgumentParser(description="VoidLink Server")
+    parser.add_argument("--host", default=DEFAULT_HOST, help=f"Host to listen on (default: {DEFAULT_HOST})")
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"Port to listen on (default: {DEFAULT_PORT})")
+    
+    args = parser.parse_args()
+    
+    # Create server
+    server = VoidLinkServer(args.host, args.port)
+    
+    # Start server
     try:
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind((HOST, PORT))
-        server.listen(5)
-        print(f"VoidLink Server running on {HOST}:{PORT}")
-        print(f"Encryption: {'Enabled' if config.get('encryption_enabled', True) else 'Disabled'}")
-        print(f"Storage: {'Local' if config.get('storage', {}).get('local', True) else 'Disabled'}")
-
-        while True:
-            client_socket, addr = server.accept()
-            print(f"New connection from: {addr}")
-            client_thread = threading.Thread(target=handle_client, args=(client_socket, addr))
-            client_thread.daemon = True
-            client_thread.start()
-
+        server.start()
     except KeyboardInterrupt:
-        print("\nShutting down server...")
-    except Exception as e:
-        print(f"Server error: {str(e)}")
+        logger.info("Server interrupted by user")
     finally:
-        if 'server' in locals():
-            server.close()
-
+        server.stop()
+    
+    return 0
 
 if __name__ == "__main__":
-    print("""
-╔═══════════════════════════════════════════╗
-║               VoidLink Server             ║
-║  Secure Terminal-Based Chat & File Share  ║
-╚═══════════════════════════════════════════╝
-    """)
-    start_server()
+    # Ensure directories exist
+    os.makedirs(FILES_DIR, exist_ok=True)
+    os.makedirs(METADATA_DIR, exist_ok=True)
+    
+    sys.exit(main())

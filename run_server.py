@@ -1,5 +1,43 @@
 #!/usr/bin/env python3
 """
+Run VoidLink Server
+
+A simple script to run the VoidLink server.
+"""
+
+import os
+import sys
+import argparse
+from server import VoidLinkServer
+
+def main():
+    """Main function"""
+    parser = argparse.ArgumentParser(description="VoidLink Server")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to listen on (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8000, help="Port to listen on (default: 8000)")
+    
+    args = parser.parse_args()
+    
+    # Create necessary directories
+    os.makedirs("database/files", exist_ok=True)
+    os.makedirs("database/metadata", exist_ok=True)
+    
+    # Create server
+    server = VoidLinkServer(args.host, args.port)
+    
+    # Start server
+    try:
+        server.start()
+    except KeyboardInterrupt:
+        print("\nServer interrupted by user")
+    finally:
+        server.stop()
+    
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())#!/usr/bin/env python3
+"""
 VoidLink Server Runner - Simple script to start the server
 """
 
