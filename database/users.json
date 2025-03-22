@@ -1,10 +1,28 @@
-{
-    "admin": {
-        "password": "$2b$12$tOIreh07sMRCX9BT9pxDouVTJ8B5RNRpM0o5UlRmjSRm3C5dkiuEa",
-        "role": "admin",
-        "created_at": 1684156800,
-        "device_ids": [],
-        "failed_attempts": 0,
-        "last_login": 1684156800
-    }
-}
+[
+  {
+    "username": "admin",
+    "password_hash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "role": "admin",
+    "created_at": 0,
+    "last_login": 1742670852.2059278,
+    "devices": [
+      "127.0.0.1"
+    ]
+  },
+  {
+    "username": "user",
+    "password_hash": "e606e38b0d8c19b24cf0ee3808183162ea7cd63ff7912dbb22b5e803286b4446",
+    "role": "user",
+    "created_at": 0,
+    "last_login": null,
+    "devices": []
+  },
+  {
+    "username": "demo",
+    "password_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+    "role": "user",
+    "created_at": 0,
+    "last_login": null,
+    "devices": []
+  }
+]

@@ -12,26 +12,29 @@ import socket
 import argparse
 import logging
 import time
+import traceback
 from getpass import getpass
-
-# Add the current directory to the path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Set to DEBUG for more detailed logs
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger('voidlink_client')
 
 # Try to import encryption module
 try:
-    import simple_encryption as encryption
+    import fixed_encryption as encryption
     ENCRYPTION_AVAILABLE = True
     logger.info("Encryption module loaded successfully")
 except ImportError:
-    ENCRYPTION_AVAILABLE = False
-    logger.warning("Encryption module not available, data will be sent unencrypted")
+    try:
+        import simple_encryption as encryption
+        ENCRYPTION_AVAILABLE = True
+        logger.info("Encryption module loaded successfully")
+    except ImportError:
+        ENCRYPTION_AVAILABLE = False
+        logger.warning("Encryption module not available, data will be sent unencrypted")
 
 # Constants
 DEFAULT_HOST = 'localhost'
@@ -57,16 +60,17 @@ class VoidLinkClient:
             self.socket.settimeout(TIMEOUT)
             self.socket.connect((self.host, self.port))
             self.connected = True
-            logger.info(f"Connected to VoidLink server at {self.host}:{self.port}")
+            logger.info(f"Connected to server at {self.host}:{self.port}")
             return True
         except socket.error as e:
             logger.error(f"Failed to connect to server: {e}")
+            self.socket = None
             self.connected = False
             return False
     
     def disconnect(self):
         """Disconnect from the server"""
-        if self.socket:
+        if self.connected:
             self.socket.close()
             self.socket = None
             self.connected = False
@@ -77,60 +81,64 @@ class VoidLinkClient:
         if not self.connected:
             logger.error("Not connected to server")
             return None
-
+        
         # Prepare message
         message = {
             "command": command,
             "data": data or {}
         }
-
+        
         # Add authentication if logged in
         if self.username:
             message["username"] = self.username
-
+        
         # Send message
         try:
             # Convert message to JSON
             json_message = json.dumps(message)
-
-            # Encrypt if encryption is available
-            if ENCRYPTION_AVAILABLE:
-                try:
-                    encrypted_message = encryption.encrypt_message(json_message)
-                    self.socket.sendall(encrypted_message.encode('utf-8'))
-                except Exception as e:
-                    logger.error(f"Encryption error: {e}")
-                    # Fall back to unencrypted
-                    self.socket.sendall(json_message.encode('utf-8'))
-            else:
-                # Send unencrypted
-                self.socket.sendall(json_message.encode('utf-8'))
-
+            
+            # Send unencrypted (for simplicity)
+            self.socket.sendall(json_message.encode('utf-8'))
+            
             # Wait for response
             response = self.socket.recv(BUFFER_SIZE)
             if not response:
                 logger.error("No response from server")
                 return None
-
+            
             # Parse response
             try:
+                # Decode response
+                response_text = response.decode('utf-8')
+                logger.debug(f"Raw response: {response_text}")
+                
+                # Try to parse as JSON directly first
+                try:
+                    return json.loads(response_text)
+                except json.JSONDecodeError:
+                    logger.debug("Response is not valid JSON, trying to decrypt...")
+                
                 # Try to decrypt if encryption is available
                 if ENCRYPTION_AVAILABLE:
                     try:
-                        decrypted_response = encryption.decrypt_message(response.decode('utf-8'))
-                        if isinstance(decrypted_response, str):
-                            return json.loads(decrypted_response)
+                        decrypted_response = encryption.decrypt_message(response_text)
+                        logger.debug(f"Decrypted response: {decrypted_response}")
+                        
+                        # Return the decrypted response
                         return decrypted_response
                     except Exception as e:
                         logger.error(f"Decryption error: {e}")
-                        # Fall back to unencrypted
-                        return json.loads(response.decode('utf-8'))
+                        logger.error(traceback.format_exc())
+                        return {"status": "error", "error": f"Decryption error: {str(e)}"}
                 else:
-                    # Parse unencrypted
-                    return json.loads(response.decode('utf-8'))
-            except json.JSONDecodeError:
-                logger.error("Invalid response from server")
-                return None
+                    logger.error("Cannot decrypt response: encryption module not available")
+                    return {"status": "error", "error": "Cannot decrypt response: encryption module not available"}
+            
+            except Exception as e:
+                logger.error(f"Error parsing response: {e}")
+                logger.error(traceback.format_exc())
+                return {"status": "error", "error": f"Error parsing response: {str(e)}"}
+        
         except socket.error as e:
             logger.error(f"Error communicating with server: {e}")
             self.connected = False
@@ -138,47 +146,92 @@ class VoidLinkClient:
     
     def login(self, username, password):
         """Log in to the server"""
-        response = self.send_command("login", {
-            "username": username,
-            "password": password
-        })
+        try:
+            response = self.send_command("login", {
+                "username": username,
+                "password": password
+            })
+            
+            if not response:
+                logger.error("No response from server during login")
+                return False
+            
+            # Check if the response is a dictionary
+            if not isinstance(response, dict):
+                logger.error(f"Invalid response type: {type(response)}")
+                return False
+            
+            # Check if login was successful
+            if response.get("status") == "success":
+                self.username = username
+                logger.info(f"Logged in as {username}")
+                return True
+            else:
+                error = response.get("error", "Unknown error")
+                logger.error(f"Login failed: {error}")
+                return False
         
-        if response and response.get("status") == "success":
-            self.username = username
-            logger.info(f"Logged in as {username}")
-            return True
-        else:
-            error = response.get("error", "Unknown error") if response else "No response from server"
-            logger.error(f"Login failed: {error}")
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            logger.error(traceback.format_exc())
             return False
     
     def logout(self):
         """Log out from the server"""
-        if not self.username:
-            logger.warning("Not logged in")
-            return True
+        try:
+            response = self.send_command("logout")
+            
+            if not response:
+                logger.error("No response from server during logout")
+                return False
+            
+            # Check if the response is a dictionary
+            if not isinstance(response, dict):
+                logger.error(f"Invalid response type: {type(response)}")
+                return False
+            
+            # Check if logout was successful
+            if response.get("status") == "success":
+                self.username = None
+                logger.info("Logged out")
+                return True
+            else:
+                error = response.get("error", "Unknown error")
+                logger.error(f"Logout failed: {error}")
+                return False
         
-        response = self.send_command("logout")
-        
-        if response and response.get("status") == "success":
-            self.username = None
-            logger.info("Logged out")
-            return True
-        else:
-            error = response.get("error", "Unknown error") if response else "No response from server"
-            logger.error(f"Logout failed: {error}")
+        except Exception as e:
+            logger.error(f"Logout error: {e}")
+            logger.error(traceback.format_exc())
             return False
     
     def list_files(self):
         """List files on the server"""
-        response = self.send_command("list_files")
+        try:
+            response = self.send_command("list_files")
+            
+            if not response:
+                logger.error("No response from server when listing files")
+                return None
+            
+            # Check if the response is a dictionary
+            if not isinstance(response, dict):
+                logger.error(f"Invalid response type: {type(response)}")
+                return None
+            
+            # Check if listing was successful
+            if response.get("status") == "success":
+                files = response.get("files", [])
+                logger.info(f"Listed {len(files)} files")
+                return files
+            else:
+                error = response.get("error", "Unknown error")
+                logger.error(f"List files failed: {error}")
+                return None
         
-        if response and response.get("status") == "success":
-            files = response.get("files", [])
-            return files
-        else:
-            error = response.get("error", "Unknown error") if response else "No response from server"
-            logger.error(f"Failed to list files: {error}")
+        except Exception as e:
+            logger.error(f"List files error: {e}")
+            logger.error(traceback.format_exc())
             return None
     
     def upload_file(self, file_path):
@@ -187,195 +240,297 @@ class VoidLinkClient:
             logger.error(f"File not found: {file_path}")
             return False
         
-        file_size = os.path.getsize(file_path)
-        file_name = os.path.basename(file_path)
-        
-        # Start upload
-        response = self.send_command("start_upload", {
-            "filename": file_name,
-            "size": file_size
-        })
-        
-        if not response or response.get("status") != "ready":
-            error = response.get("error", "Unknown error") if response else "No response from server"
-            logger.error(f"Failed to start upload: {error}")
-            return False
-        
-        # Get upload ID
-        upload_id = response.get("upload_id")
-        if not upload_id:
-            logger.error("No upload ID received from server")
-            return False
-        
-        # Upload file in chunks
-        with open(file_path, 'rb') as f:
-            bytes_sent = 0
-            chunk_size = 1024 * 1024  # 1 MB chunks
+        try:
+            # Get file info
+            file_size = os.path.getsize(file_path)
+            file_name = os.path.basename(file_path)
             
-            while bytes_sent < file_size:
-                # Read chunk
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-                
-                # Send chunk
-                chunk_response = self.send_command("upload_chunk", {
-                    "upload_id": upload_id,
-                    "chunk_index": bytes_sent // chunk_size,
-                    "chunk_data": chunk.hex()  # Convert binary to hex string
-                })
-                
-                if not chunk_response or chunk_response.get("status") != "success":
-                    error = chunk_response.get("error", "Unknown error") if chunk_response else "No response from server"
-                    logger.error(f"Failed to upload chunk: {error}")
-                    return False
-                
-                # Update progress
-                bytes_sent += len(chunk)
-                progress = bytes_sent / file_size * 100
-                print(f"\rUploading: {progress:.1f}% ({bytes_sent}/{file_size} bytes)", end="")
+            # Start upload
+            response = self.send_command("start_upload", {
+                "filename": file_name,
+                "size": file_size
+            })
             
-            print()  # New line after progress
-        
-        # Complete upload
-        complete_response = self.send_command("complete_upload", {
-            "upload_id": upload_id
-        })
-        
-        if complete_response and complete_response.get("status") == "success":
-            logger.info(f"File uploaded successfully: {file_name}")
+            if not response:
+                logger.error("No response from server when starting upload")
+                return False
+            
+            # Check if the response is a dictionary
+            if not isinstance(response, dict):
+                logger.error(f"Invalid response type: {type(response)}")
+                return False
+            
+            # Check if upload start was successful
+            if response.get("status") != "ready":
+                error = response.get("error", "Unknown error")
+                logger.error(f"Start upload failed: {error}")
+                return False
+            
+            # Get upload ID
+            upload_id = response.get("upload_id")
+            if not upload_id:
+                logger.error("No upload ID received")
+                return False
+            
+            # Upload file in chunks
+            with open(file_path, 'rb') as f:
+                chunk_index = 0
+                while True:
+                    chunk = f.read(BUFFER_SIZE // 2)  # Half buffer size to account for encoding overhead
+                    if not chunk:
+                        break
+                    
+                    # Send chunk
+                    chunk_response = self.send_command("upload_chunk", {
+                        "upload_id": upload_id,
+                        "chunk_index": chunk_index,
+                        "chunk_data": chunk.hex()
+                    })
+                    
+                    if not chunk_response:
+                        logger.error("No response from server when uploading chunk")
+                        return False
+                    
+                    # Check if the response is a dictionary
+                    if not isinstance(chunk_response, dict):
+                        logger.error(f"Invalid response type: {type(chunk_response)}")
+                        return False
+                    
+                    # Check if chunk upload was successful
+                    if chunk_response.get("status") != "success":
+                        error = chunk_response.get("error", "Unknown error")
+                        logger.error(f"Upload chunk failed: {error}")
+                        return False
+                    
+                    chunk_index += 1
+                    
+                    # Print progress
+                    progress = min(100, int((f.tell() / file_size) * 100))
+                    print(f"Uploading: {progress}% complete", end="\r")
+            
+            # Complete upload
+            complete_response = self.send_command("complete_upload", {
+                "upload_id": upload_id
+            })
+            
+            if not complete_response:
+                logger.error("No response from server when completing upload")
+                return False
+            
+            # Check if the response is a dictionary
+            if not isinstance(complete_response, dict):
+                logger.error(f"Invalid response type: {type(complete_response)}")
+                return False
+            
+            # Check if upload completion was successful
+            if complete_response.get("status") != "success":
+                error = complete_response.get("error", "Unknown error")
+                logger.error(f"Complete upload failed: {error}")
+                return False
+            
+            print("Upload complete!                ")
+            logger.info(f"File uploaded: {file_name}")
             return True
-        else:
-            error = complete_response.get("error", "Unknown error") if complete_response else "No response from server"
-            logger.error(f"Failed to complete upload: {error}")
+        
+        except Exception as e:
+            logger.error(f"Upload error: {e}")
+            logger.error(traceback.format_exc())
             return False
     
     def download_file(self, file_id, output_path=None):
         """Download a file from the server"""
-        # Start download
-        response = self.send_command("download_file", {
-            "file_id": file_id
-        })
+        try:
+            # Start download
+            response = self.send_command("download_file", {
+                "file_id": file_id
+            })
+            
+            if not response:
+                logger.error("No response from server when starting download")
+                return False
+            
+            # Check if the response is a dictionary
+            if not isinstance(response, dict):
+                logger.error(f"Invalid response type: {type(response)}")
+                return False
+            
+            # Check if download start was successful
+            if response.get("status") != "ready":
+                error = response.get("error", "Unknown error")
+                logger.error(f"Start download failed: {error}")
+                return False
+            
+            # Get download info
+            download_id = response.get("download_id")
+            filename = response.get("filename")
+            file_size = response.get("size")
+            
+            if not download_id or not filename or not file_size:
+                logger.error("Missing download information")
+                return False
+            
+            # Determine output path
+            if not output_path:
+                output_path = filename
+            
+            # Download file in chunks
+            with open(output_path, 'wb') as f:
+                chunk_index = 0
+                bytes_received = 0
+                
+                while bytes_received < file_size:
+                    # Request chunk
+                    chunk_response = self.send_command("download_chunk", {
+                        "file_id": file_id,
+                        "chunk_index": chunk_index
+                    })
+                    
+                    if not chunk_response:
+                        logger.error("No response from server when downloading chunk")
+                        return False
+                    
+                    # Check if the response is a dictionary
+                    if not isinstance(chunk_response, dict):
+                        logger.error(f"Invalid response type: {type(chunk_response)}")
+                        return False
+                    
+                    # Check if chunk download was successful
+                    if chunk_response.get("status") != "success":
+                        error = chunk_response.get("error", "Unknown error")
+                        logger.error(f"Download chunk failed: {error}")
+                        return False
+                    
+                    # Get chunk data
+                    chunk_data_hex = chunk_response.get("chunk_data")
+                    if not chunk_data_hex:
+                        logger.error("No chunk data received")
+                        return False
+                    
+                    # Convert hex to bytes
+                    chunk_data = bytes.fromhex(chunk_data_hex)
+                    
+                    # Write chunk
+                    f.write(chunk_data)
+                    
+                    bytes_received += len(chunk_data)
+                    chunk_index += 1
+                    
+                    # Print progress
+                    progress = min(100, int((bytes_received / file_size) * 100))
+                    print(f"Downloading: {progress}% complete", end="\r")
+            
+            print("Download complete!                ")
+            logger.info(f"File downloaded: {filename}")
+            return True
         
-        if not response or response.get("status") != "ready":
-            error = response.get("error", "Unknown error") if response else "No response from server"
-            logger.error(f"Failed to start download: {error}")
+        except Exception as e:
+            logger.error(f"Download error: {e}")
+            logger.error(traceback.format_exc())
             return False
-        
-        # Get file info
-        file_name = response.get("filename", "unknown")
-        file_size = response.get("size", 0)
-        
-        # Determine output path
-        if not output_path:
-            output_path = file_name
-        
-        # Download file in chunks
-        with open(output_path, 'wb') as f:
-            bytes_received = 0
-            chunk_index = 0
-            
-            while bytes_received < file_size:
-                # Request chunk
-                chunk_response = self.send_command("download_chunk", {
-                    "file_id": file_id,
-                    "chunk_index": chunk_index
-                })
-                
-                if not chunk_response or chunk_response.get("status") != "success":
-                    error = chunk_response.get("error", "Unknown error") if chunk_response else "No response from server"
-                    logger.error(f"Failed to download chunk: {error}")
-                    return False
-                
-                # Get chunk data
-                chunk_data = bytes.fromhex(chunk_response.get("chunk_data", ""))
-                if not chunk_data:
-                    logger.error("Empty chunk received")
-                    return False
-                
-                # Write chunk to file
-                f.write(chunk_data)
-                
-                # Update progress
-                bytes_received += len(chunk_data)
-                progress = bytes_received / file_size * 100
-                print(f"\rDownloading: {progress:.1f}% ({bytes_received}/{file_size} bytes)", end="")
-                
-                chunk_index += 1
-            
-            print()  # New line after progress
-        
-        logger.info(f"File downloaded successfully: {output_path}")
-        return True
     
     def share_file(self, file_id, recipient):
         """Share a file with another user"""
-        response = self.send_command("share_file", {
-            "file_id": file_id,
-            "recipient": recipient
-        })
+        try:
+            response = self.send_command("share_file", {
+                "file_id": file_id,
+                "recipient": recipient
+            })
+            
+            if not response:
+                logger.error("No response from server when sharing file")
+                return False
+            
+            # Check if the response is a dictionary
+            if not isinstance(response, dict):
+                logger.error(f"Invalid response type: {type(response)}")
+                return False
+            
+            # Check if sharing was successful
+            if response.get("status") == "success":
+                logger.info(f"File shared with {recipient}")
+                return True
+            else:
+                error = response.get("error", "Unknown error")
+                logger.error(f"Share file failed: {error}")
+                return False
         
-        if response and response.get("status") == "success":
-            share_link = response.get("share_link")
-            logger.info(f"File shared successfully with {recipient}")
-            if share_link:
-                logger.info(f"Share link: {share_link}")
-            return True
-        else:
-            error = response.get("error", "Unknown error") if response else "No response from server"
-            logger.error(f"Failed to share file: {error}")
+        except Exception as e:
+            logger.error(f"Share file error: {e}")
+            logger.error(traceback.format_exc())
             return False
     
     def delete_file(self, file_id):
-        """Delete a file from the server"""
-        response = self.send_command("delete_file", {
-            "file_id": file_id
-        })
+        """Delete a file"""
+        try:
+            response = self.send_command("delete_file", {
+                "file_id": file_id
+            })
+            
+            if not response:
+                logger.error("No response from server when deleting file")
+                return False
+            
+            # Check if the response is a dictionary
+            if not isinstance(response, dict):
+                logger.error(f"Invalid response type: {type(response)}")
+                return False
+            
+            # Check if deletion was successful
+            if response.get("status") == "success":
+                logger.info("File deleted")
+                return True
+            else:
+                error = response.get("error", "Unknown error")
+                logger.error(f"Delete file failed: {error}")
+                return False
         
-        if response and response.get("status") == "success":
-            logger.info("File deleted successfully")
-            return True
-        else:
-            error = response.get("error", "Unknown error") if response else "No response from server"
-            logger.error(f"Failed to delete file: {error}")
+        except Exception as e:
+            logger.error(f"Delete file error: {e}")
+            logger.error(traceback.format_exc())
             return False
 
 def interactive_mode(client):
     """Run the client in interactive mode"""
-    print("VoidLink Client")
+    print("\nVoidLink Client")
     print("==============")
-    print(f"Connected to server at {client.host}:{client.port}")
-    print()
     
     # Login
-    username = input("Username: ")
-    password = getpass("Password: ")
-    
-    if not client.login(username, password):
-        print("Login failed. Exiting.")
-        return
-    
-    print()
-    print(f"Welcome, {username}!")
+    while not client.username:
+        username = input("Username: ")
+        if not username:
+            print("Username is required.")
+            continue
+            
+        password = getpass("Password: ")
+        if not password:
+            print("Password is required.")
+            continue
+        
+        if client.login(username, password):
+            print(f"Welcome, {username}!")
+            break
+        else:
+            print("Login failed. Please try again.")
     
     # Main loop
     while True:
-        print("\nVoidLink Commands:")
-        print("1. List Files")
-        print("2. Upload File")
-        print("3. Download File")
-        print("4. Share File")
-        print("5. Delete File")
-        print("6. Logout and Exit")
+        print("\nOptions:")
+        print("1. List files")
+        print("2. Upload file")
+        print("3. Download file")
+        print("4. Share file")
+        print("5. Delete file")
+        print("6. Logout")
+        print("7. Exit")
         
-        choice = input("\nEnter choice (1-6): ")
+        choice = input("\nEnter choice (1-7): ")
         
         if choice == "1":
             # List files
             files = client.list_files()
             if files:
-                print("\nYour Files:")
-                print("-----------")
+                print("\nFiles:")
+                print("-----")
                 for i, file in enumerate(files):
                     print(f"{i+1}. {file['name']} ({file['size']}, {file['date']})")
             else:
@@ -383,120 +538,155 @@ def interactive_mode(client):
         
         elif choice == "2":
             # Upload file
-            file_path = input("Enter file path to upload: ")
-            if os.path.exists(file_path):
-                print(f"Uploading {file_path}...")
-                if client.upload_file(file_path):
-                    print("Upload successful!")
-                else:
-                    print("Upload failed.")
+            file_path = input("Enter file path: ")
+            if not file_path:
+                print("File path is required.")
+                continue
+            
+            if client.upload_file(file_path):
+                print("Upload successful!")
             else:
-                print(f"File not found: {file_path}")
+                print("Upload failed.")
         
         elif choice == "3":
             # Download file
             files = client.list_files()
-            if files:
-                print("\nYour Files:")
-                print("-----------")
-                for i, file in enumerate(files):
-                    print(f"{i+1}. {file['name']} ({file['size']}, {file['date']})")
-                
-                try:
-                    file_index = int(input("\nEnter file number to download: ")) - 1
-                    if 0 <= file_index < len(files):
-                        file_id = files[file_index].get("id")
-                        output_path = input(f"Enter output path (default: {files[file_index]['name']}): ")
-                        if not output_path:
-                            output_path = files[file_index]['name']
-                        
-                        print(f"Downloading to {output_path}...")
-                        if client.download_file(file_id, output_path):
-                            print("Download successful!")
-                        else:
-                            print("Download failed.")
-                    else:
-                        print("Invalid file number.")
-                except ValueError:
-                    print("Invalid input.")
-            else:
+            if not files:
                 print("No files found or error listing files.")
+                continue
+            
+            print("\nFiles:")
+            print("-----")
+            for i, file in enumerate(files):
+                print(f"{i+1}. {file['name']} ({file['size']}, {file['date']})")
+            
+            try:
+                index = int(input("\nEnter file number to download: ")) - 1
+                if index < 0 or index >= len(files):
+                    print("Invalid file number.")
+                    continue
+                
+                file_id = files[index]["id"]
+                output_path = input("Enter output path (leave blank for default): ")
+                
+                if client.download_file(file_id, output_path):
+                    print("Download successful!")
+                else:
+                    print("Download failed.")
+            
+            except ValueError:
+                print("Invalid input.")
         
         elif choice == "4":
             # Share file
             files = client.list_files()
-            if files:
-                print("\nYour Files:")
-                print("-----------")
-                for i, file in enumerate(files):
-                    print(f"{i+1}. {file['name']} ({file['size']}, {file['date']})")
-                
-                try:
-                    file_index = int(input("\nEnter file number to share: ")) - 1
-                    if 0 <= file_index < len(files):
-                        file_id = files[file_index].get("id")
-                        recipient = input("Enter recipient username or email: ")
-                        
-                        if client.share_file(file_id, recipient):
-                            print("File shared successfully!")
-                        else:
-                            print("Sharing failed.")
-                    else:
-                        print("Invalid file number.")
-                except ValueError:
-                    print("Invalid input.")
-            else:
+            if not files:
                 print("No files found or error listing files.")
+                continue
+            
+            print("\nFiles:")
+            print("-----")
+            for i, file in enumerate(files):
+                print(f"{i+1}. {file['name']} ({file['size']}, {file['date']})")
+            
+            try:
+                index = int(input("\nEnter file number to share: ")) - 1
+                if index < 0 or index >= len(files):
+                    print("Invalid file number.")
+                    continue
+                
+                file_id = files[index]["id"]
+                recipient = input("Enter recipient username: ")
+                
+                if not recipient:
+                    print("Recipient username is required.")
+                    continue
+                
+                if client.share_file(file_id, recipient):
+                    print("File shared successfully!")
+                else:
+                    print("Sharing failed.")
+            
+            except ValueError:
+                print("Invalid input.")
         
         elif choice == "5":
             # Delete file
             files = client.list_files()
-            if files:
-                print("\nYour Files:")
-                print("-----------")
-                for i, file in enumerate(files):
-                    print(f"{i+1}. {file['name']} ({file['size']}, {file['date']})")
-                
-                try:
-                    file_index = int(input("\nEnter file number to delete: ")) - 1
-                    if 0 <= file_index < len(files):
-                        file_id = files[file_index].get("id")
-                        confirm = input(f"Are you sure you want to delete {files[file_index]['name']}? (y/n): ")
-                        
-                        if confirm.lower() == 'y':
-                            if client.delete_file(file_id):
-                                print("File deleted successfully!")
-                            else:
-                                print("Deletion failed.")
-                        else:
-                            print("Deletion cancelled.")
-                    else:
-                        print("Invalid file number.")
-                except ValueError:
-                    print("Invalid input.")
-            else:
+            if not files:
                 print("No files found or error listing files.")
+                continue
+            
+            print("\nFiles:")
+            print("-----")
+            for i, file in enumerate(files):
+                print(f"{i+1}. {file['name']} ({file['size']}, {file['date']})")
+            
+            try:
+                index = int(input("\nEnter file number to delete: ")) - 1
+                if index < 0 or index >= len(files):
+                    print("Invalid file number.")
+                    continue
+                
+                file_id = files[index]["id"]
+                confirm = input(f"Are you sure you want to delete '{files[index]['name']}'? (y/n): ")
+                
+                if confirm.lower() != "y":
+                    print("Deletion cancelled.")
+                    continue
+                
+                if client.delete_file(file_id):
+                    print("File deleted successfully!")
+                else:
+                    print("Deletion failed.")
+            
+            except ValueError:
+                print("Invalid input.")
         
         elif choice == "6":
-            # Logout and exit
-            client.logout()
-            print("Logged out. Goodbye!")
+            # Logout
+            if client.logout():
+                print("Logged out successfully.")
+                
+                # Ask for new login
+                while not client.username:
+                    username = input("Username: ")
+                    if not username:
+                        print("Username is required.")
+                        continue
+                        
+                    password = getpass("Password: ")
+                    if not password:
+                        print("Password is required.")
+                        continue
+                    
+                    if client.login(username, password):
+                        print(f"Welcome, {username}!")
+                        break
+                    else:
+                        print("Login failed. Please try again.")
+            else:
+                print("Logout failed.")
+        
+        elif choice == "7":
+            # Exit
+            print("Exiting...")
             break
         
         else:
-            print("Invalid choice. Please enter a number between 1 and 6.")
+            print("Invalid choice. Please try again.")
 
 def main():
     """Main function"""
     parser = argparse.ArgumentParser(description="VoidLink Client")
-    parser.add_argument("--host", default=DEFAULT_HOST, help=f"Server hostname or IP (default: {DEFAULT_HOST})")
+    parser.add_argument("--host", default=DEFAULT_HOST, help=f"Server host (default: {DEFAULT_HOST})")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"Server port (default: {DEFAULT_PORT})")
-    parser.add_argument("--username", help="Username for authentication")
-    parser.add_argument("--password", help="Password for authentication")
+    parser.add_argument("--username", help="Username for login")
+    parser.add_argument("--password", help="Password for login (not recommended, will prompt if not provided)")
     parser.add_argument("--command", choices=["list", "upload", "download", "share", "delete"], help="Command to execute")
-    parser.add_argument("--file", help="File path for upload/download/share/delete commands")
-    parser.add_argument("--file-id", help="File ID for download/share/delete commands")
-    parser.add_argument("--recipient", help="Recipient for share command")
+    parser.add_argument("--file", help="File path for upload command")
+    parser.add_argument("--file-id", help="File ID for download, share, or delete commands")
+    parser.add_argument("--recipient", help="Recipient username for share command")
     parser.add_argument("--output", help="Output path for download command")
     
     args = parser.parse_args()

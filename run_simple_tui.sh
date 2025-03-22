@@ -10,6 +10,10 @@ fi
 
 # Make the TUI script executable
 chmod +x simple_tui.py
+chmod +x simple_authentication.py
+chmod +x simple_encryption.py
+chmod +x simple_file_security.py
+chmod +x simple_file_transfer.py
 
 # Run the TUI
 echo "Starting VoidLink Simple Terminal User Interface..."

@@ -24,10 +24,10 @@ logger = logging.getLogger('voidlink_tui')
 
 # Try to import VoidLink modules
 try:
-    import authentication
-    import encryption
-    import file_security
-    import file_transfer
+    import simple_authentication as authentication
+    import simple_encryption as encryption
+    import simple_file_security as file_security
+    import simple_file_transfer as file_transfer
     VOIDLINK_MODULES_LOADED = True
     logger.info("VoidLink modules loaded successfully")
 except ImportError as e:
@@ -48,720 +48,514 @@ DEMO_FILES = [
 
 class SimpleMenu:
     """Simple menu class for the TUI"""
+    
     def __init__(self, items, title="Menu"):
-        self.items = items
+        """Initialize the menu"""
+        self.window = None
+        self.panel = None
         self.title = title
+        self.items = items
         self.position = 0
     
-    def display(self, stdscr):
+    def init_window(self, height, width, y, x):
+        """Initialize the window"""
+        self.window = curses.newwin(height, width, y, x)
+        self.window.keypad(True)
+        self.panel = panel.new_panel(self.window)
+        self.panel.hide()
+        panel.update_panels()
+    
+    def navigate(self, key):
+        """Navigate the menu"""
+        if key == curses.KEY_UP:
+            self.position = max(0, self.position - 1)
+        elif key == curses.KEY_DOWN:
+            self.position = min(len(self.items) - 1, self.position + 1)
+    
+    def display(self):
         """Display the menu"""
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()
+        self.panel.top()
+        self.panel.show()
+        self.window.clear()
         
-        # Draw title
-        title = f" {self.title} "
-        try:
-            stdscr.addstr(1, (w - len(title)) // 2, title)
-            stdscr.addstr(2, 2, "=" * (w - 4))
-        except curses.error:
-            pass
+        # Draw border and title
+        self.window.box()
+        self.window.addstr(0, 2, f" {self.title} ")
         
         # Draw menu items
-        for idx, item in enumerate(self.items):
-            y = 4 + idx
-            if y < h - 2:
-                try:
-                    if idx == self.position:
-                        stdscr.addstr(y, 4, f"> {item}", curses.A_BOLD)
-                    else:
-                        stdscr.addstr(y, 4, f"  {item}")
-                except curses.error:
-                    pass
+        for i, item in enumerate(self.items):
+            if i == self.position:
+                mode = curses.A_REVERSE
+            else:
+                mode = curses.A_NORMAL
+            
+            self.window.addstr(i + 1, 2, item, mode)
+        
+        self.window.refresh()
+        panel.update_panels()
+        curses.doupdate()
+    
+    def hide(self):
+        """Hide the menu"""
+        self.panel.hide()
+        panel.update_panels()
+        curses.doupdate()
+
+class SimpleDialog:
+    """Simple dialog class for the TUI"""
+    
+    def __init__(self, title="Dialog", message=""):
+        """Initialize the dialog"""
+        self.window = None
+        self.panel = None
+        self.title = title
+        self.message = message
+    
+    def init_window(self, height, width, y, x):
+        """Initialize the window"""
+        self.window = curses.newwin(height, width, y, x)
+        self.window.keypad(True)
+        self.panel = panel.new_panel(self.window)
+        self.panel.hide()
+        panel.update_panels()
+    
+    def display(self):
+        """Display the dialog"""
+        self.panel.top()
+        self.panel.show()
+        self.window.clear()
+        
+        # Draw border and title
+        self.window.box()
+        self.window.addstr(0, 2, f" {self.title} ")
+        
+        # Draw message
+        lines = self.message.split("\n")
+        for i, line in enumerate(lines):
+            self.window.addstr(i + 1, 2, line)
         
         # Draw footer
-        try:
-            stdscr.addstr(h - 2, 2, "=" * (w - 4))
-            footer = "↑/↓: Navigate | Enter: Select | q: Quit"
-            stdscr.addstr(h - 1, (w - len(footer)) // 2, footer)
-        except curses.error:
-            pass
+        self.window.addstr(self.window.getmaxyx()[0] - 2, 2, "Press any key to continue...")
         
-        stdscr.refresh()
+        self.window.refresh()
+        panel.update_panels()
+        curses.doupdate()
     
-    def handle_input(self, key):
-        """Handle user input"""
-        if key == curses.KEY_UP and self.position > 0:
-            self.position -= 1
-        elif key == curses.KEY_DOWN and self.position < len(self.items) - 1:
-            self.position += 1
-        
-        return self.position
+    def wait_for_key(self):
+        """Wait for a key press"""
+        self.window.getch()
+    
+    def hide(self):
+        """Hide the dialog"""
+        self.panel.hide()
+        panel.update_panels()
+        curses.doupdate()
 
-class SimpleFileList:
-    """Simple file list class for the TUI"""
-    def __init__(self, files, title="Files"):
-        self.files = files
+class SimpleForm:
+    """Simple form class for the TUI"""
+    
+    def __init__(self, fields, title="Form"):
+        """Initialize the form"""
+        self.window = None
+        self.panel = None
         self.title = title
+        self.fields = fields
+        self.values = [""] * len(fields)
+        self.position = 0
+    
+    def init_window(self, height, width, y, x):
+        """Initialize the window"""
+        self.window = curses.newwin(height, width, y, x)
+        self.window.keypad(True)
+        self.panel = panel.new_panel(self.window)
+        self.panel.hide()
+        panel.update_panels()
+    
+    def navigate(self, key):
+        """Navigate the form"""
+        if key == curses.KEY_UP:
+            self.position = max(0, self.position - 1)
+        elif key == curses.KEY_DOWN:
+            self.position = min(len(self.fields) - 1, self.position + 1)
+    
+    def edit_field(self):
+        """Edit the current field"""
+        curses.echo()
+        self.window.move(self.position + 1, len(self.fields[self.position]) + 4)
+        self.values[self.position] = self.window.getstr().decode('utf-8')
+        curses.noecho()
+    
+    def display(self):
+        """Display the form"""
+        self.panel.top()
+        self.panel.show()
+        self.window.clear()
+        
+        # Draw border and title
+        self.window.box()
+        self.window.addstr(0, 2, f" {self.title} ")
+        
+        # Draw form fields
+        for i, field in enumerate(self.fields):
+            if i == self.position:
+                mode = curses.A_REVERSE
+            else:
+                mode = curses.A_NORMAL
+            
+            self.window.addstr(i + 1, 2, field, mode)
+            self.window.addstr(i + 1, len(field) + 4, self.values[i])
+        
+        # Draw footer
+        self.window.addstr(self.window.getmaxyx()[0] - 2, 2, "Enter: Edit field | Esc: Cancel | F10: Submit")
+        
+        self.window.refresh()
+        panel.update_panels()
+        curses.doupdate()
+    
+    def hide(self):
+        """Hide the form"""
+        self.panel.hide()
+        panel.update_panels()
+        curses.doupdate()
+
+class SimpleTable:
+    """Simple table class for the TUI"""
+    
+    def __init__(self, headers, data, title="Table"):
+        """Initialize the table"""
+        self.window = None
+        self.panel = None
+        self.title = title
+        self.headers = headers
+        self.data = data
         self.position = 0
         self.offset = 0
+        self.max_rows = 0
     
-    def display(self, stdscr):
-        """Display the file list"""
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()
-        
-        # Draw title
-        title = f" {self.title} "
-        try:
-            stdscr.addstr(1, (w - len(title)) // 2, title)
-            stdscr.addstr(2, 2, "=" * (w - 4))
-        except curses.error:
-            pass
-        
-        # Draw column headers
-        try:
-            stdscr.addstr(4, 4, "Name")
-            stdscr.addstr(4, w - 30, "Size")
-            stdscr.addstr(4, w - 20, "Date")
-            stdscr.addstr(4, w - 10, "Type")
-            stdscr.addstr(5, 2, "-" * (w - 4))
-        except curses.error:
-            pass
-        
-        # Calculate visible range
-        visible_lines = h - 9
-        end_idx = min(self.offset + visible_lines, len(self.files))
-        
-        # Draw files
-        for idx in range(self.offset, end_idx):
-            file = self.files[idx]
-            y = 6 + (idx - self.offset)
-            
-            if y < h - 3:
-                try:
-                    # Highlight selected item
-                    attr = curses.A_BOLD if idx == self.position else curses.A_NORMAL
-                    
-                    # Name (truncated if needed)
-                    name = file["name"]
-                    if len(name) > w - 35:
-                        name = name[:w - 38] + "..."
-                    stdscr.addstr(y, 4, name, attr)
-                    
-                    # Size, date, type
-                    stdscr.addstr(y, w - 30, file["size"], attr)
-                    stdscr.addstr(y, w - 20, file["date"], attr)
-                    stdscr.addstr(y, w - 10, file["type"], attr)
-                except curses.error:
-                    pass
-        
-        # Draw footer
-        try:
-            stdscr.addstr(h - 2, 2, "=" * (w - 4))
-            footer = "↑/↓: Navigate | Enter: Select | q: Back"
-            stdscr.addstr(h - 1, (w - len(footer)) // 2, footer)
-        except curses.error:
-            pass
-        
-        stdscr.refresh()
+    def init_window(self, height, width, y, x):
+        """Initialize the window"""
+        self.window = curses.newwin(height, width, y, x)
+        self.window.keypad(True)
+        self.panel = panel.new_panel(self.window)
+        self.panel.hide()
+        panel.update_panels()
+        self.max_rows = height - 4  # Subtract border, header, and footer
     
-    def handle_input(self, key):
-        """Handle user input"""
-        if key == curses.KEY_UP and self.position > 0:
-            self.position -= 1
-            # Adjust offset if needed
-            if self.position < self.offset:
-                self.offset = self.position
-        elif key == curses.KEY_DOWN and self.position < len(self.files) - 1:
-            self.position += 1
-            # Adjust offset if needed
-            h, w = curses.stdscr.getmaxyx()
-            visible_lines = h - 9
-            if self.position >= self.offset + visible_lines:
-                self.offset = self.position - visible_lines + 1
-        
-        return self.position
-
-class SimpleMessage:
-    """Simple message display class for the TUI"""
-    def __init__(self, message, title="Message"):
-        self.message = message
-        self.title = title
+    def navigate(self, key):
+        """Navigate the table"""
+        if key == curses.KEY_UP:
+            if self.position > 0:
+                self.position -= 1
+                if self.position < self.offset:
+                    self.offset = self.position
+        elif key == curses.KEY_DOWN:
+            if self.position < len(self.data) - 1:
+                self.position += 1
+                if self.position >= self.offset + self.max_rows:
+                    self.offset = self.position - self.max_rows + 1
     
-    def display(self, stdscr):
-        """Display the message"""
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()
+    def display(self):
+        """Display the table"""
+        self.panel.top()
+        self.panel.show()
+        self.window.clear()
         
-        # Draw title
-        title = f" {self.title} "
-        try:
-            stdscr.addstr(1, (w - len(title)) // 2, title)
-            stdscr.addstr(2, 2, "=" * (w - 4))
-        except curses.error:
-            pass
+        # Draw border and title
+        self.window.box()
+        self.window.addstr(0, 2, f" {self.title} ")
         
-        # Draw message (handle multi-line)
-        lines = self.message.split('\n')
-        for idx, line in enumerate(lines):
-            y = 4 + idx
-            if y < h - 3 and line:
-                try:
-                    stdscr.addstr(y, 4, line[:w - 8])
-                except curses.error:
-                    pass
+        # Calculate column widths
+        width = self.window.getmaxyx()[1] - 4
+        col_width = width // len(self.headers)
+        
+        # Draw headers
+        for i, header in enumerate(self.headers):
+            self.window.addstr(1, 2 + i * col_width, header[:col_width - 1])
+        
+        # Draw separator
+        self.window.hline(2, 1, curses.ACS_HLINE, width + 2)
+        
+        # Draw data
+        for i in range(min(self.max_rows, len(self.data) - self.offset)):
+            row = self.data[i + self.offset]
+            for j, cell in enumerate(row):
+                if i + self.offset == self.position:
+                    mode = curses.A_REVERSE
+                else:
+                    mode = curses.A_NORMAL
+                
+                self.window.addstr(i + 3, 2 + j * col_width, str(cell)[:col_width - 1], mode)
         
         # Draw footer
-        try:
-            stdscr.addstr(h - 2, 2, "=" * (w - 4))
-            footer = "Press any key to continue"
-            stdscr.addstr(h - 1, (w - len(footer)) // 2, footer)
-        except curses.error:
-            pass
+        self.window.addstr(self.window.getmaxyx()[0] - 2, 2, f"Item {self.position + 1} of {len(self.data)}")
         
-        stdscr.refresh()
+        self.window.refresh()
+        panel.update_panels()
+        curses.doupdate()
+    
+    def hide(self):
+        """Hide the table"""
+        self.panel.hide()
+        panel.update_panels()
+        curses.doupdate()
 
-class SimpleInput:
-    """Simple input class for the TUI"""
-    def __init__(self, prompt, title="Input"):
-        self.prompt = prompt
-        self.title = title
-        self.value = ""
+class SimpleTUI:
+    """Simple Terminal User Interface for VoidLink"""
     
-    def display(self, stdscr):
-        """Display the input prompt"""
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()
-        
-        # Draw title
-        title = f" {self.title} "
-        try:
-            stdscr.addstr(1, (w - len(title)) // 2, title)
-            stdscr.addstr(2, 2, "=" * (w - 4))
-        except curses.error:
-            pass
-        
-        # Draw prompt
-        try:
-            stdscr.addstr(4, 4, self.prompt)
-        except curses.error:
-            pass
-        
-        # Draw input field
-        try:
-            field_width = w - 10
-            stdscr.addstr(6, 4, "[" + " " * field_width + "]")
-            
-            # Draw current value
-            if len(self.value) > field_width:
-                display_value = self.value[-field_width:]
-            else:
-                display_value = self.value
-            
-            stdscr.addstr(6, 5, display_value)
-            
-            # Draw cursor
-            stdscr.addstr(6, 5 + len(display_value), " ", curses.A_REVERSE)
-        except curses.error:
-            pass
-        
-        # Draw footer
-        try:
-            stdscr.addstr(h - 2, 2, "=" * (w - 4))
-            footer = "Enter: Confirm | Esc: Cancel"
-            stdscr.addstr(h - 1, (w - len(footer)) // 2, footer)
-        except curses.error:
-            pass
-        
-        stdscr.refresh()
+    def __init__(self):
+        """Initialize the TUI"""
+        self.screen = None
+        self.username = None
+        self.current_menu = None
+        self.running = True
     
-    def get_input(self, stdscr):
-        """Get input from the user"""
-        curses.curs_set(0)  # Hide cursor
-        self.display(stdscr)
-        
-        while True:
-            key = stdscr.getch()
-            
-            if key == 27:  # Escape
-                return None
-            elif key == 10:  # Enter
-                return self.value
-            elif key == 127 or key == 8 or key == curses.KEY_BACKSPACE:  # Backspace
-                self.value = self.value[:-1]
-            elif key == curses.KEY_DC:  # Delete
-                self.value = self.value[:-1]
-            elif 32 <= key <= 126:  # Printable characters
-                self.value += chr(key)
-            
-            self.display(stdscr)
-
-def show_main_menu(stdscr):
-    """Show the main menu"""
-    menu_items = [
-        "Login",
-        "View Files",
-        "Upload File",
-        "Download File",
-        "Share File",
-        "Settings",
-        "About",
-        "Exit"
-    ]
-    
-    menu = SimpleMenu(menu_items, "VoidLink Main Menu")
-    
-    while True:
-        menu.display(stdscr)
-        key = stdscr.getch()
-        
-        if key == ord('q'):
-            return "EXIT"
-        
-        position = menu.handle_input(key)
-        
-        if key == 10:  # Enter key
-            if position == 0:  # Login
-                result = login(stdscr)
-                if result == "EXIT":
-                    return "EXIT"
-            elif position == 1:  # View Files
-                result = view_files(stdscr)
-                if result == "EXIT":
-                    return "EXIT"
-            elif position == 2:  # Upload File
-                result = upload_file(stdscr)
-                if result == "EXIT":
-                    return "EXIT"
-            elif position == 3:  # Download File
-                result = download_file(stdscr)
-                if result == "EXIT":
-                    return "EXIT"
-            elif position == 4:  # Share File
-                result = share_file(stdscr)
-                if result == "EXIT":
-                    return "EXIT"
-            elif position == 5:  # Settings
-                result = show_settings(stdscr)
-                if result == "EXIT":
-                    return "EXIT"
-            elif position == 6:  # About
-                show_about(stdscr)
-            elif position == 7:  # Exit
-                return "EXIT"
-
-def login(stdscr):
-    """Handle user login"""
-    # Get username
-    username_input = SimpleInput("Enter username:", "Login")
-    username = username_input.get_input(stdscr)
-    
-    if username is None:
-        return
-    
-    # Get password
-    password_input = SimpleInput("Enter password:", "Login")
-    password = password_input.get_input(stdscr)
-    
-    if password is None:
-        return
-    
-    # Authenticate
-    if VOIDLINK_MODULES_LOADED:
-        try:
-            success = authentication.authenticate_user(username, password)
-            if success:
-                message = SimpleMessage(f"Welcome, {username}!\n\nYou have successfully logged in.", "Login Successful")
-                message.display(stdscr)
-                stdscr.getch()
-                return username
-            else:
-                message = SimpleMessage("Invalid username or password.\nPlease try again.", "Login Failed")
-                message.display(stdscr)
-                stdscr.getch()
-                return None
-        except Exception as e:
-            message = SimpleMessage(f"Authentication error: {str(e)}", "Error")
-            message.display(stdscr)
-            stdscr.getch()
-            return None
-    else:
-        # Demo mode - accept any login
-        message = SimpleMessage(f"Welcome, {username}!\n\nYou have successfully logged in.\n\n(Demo Mode)", "Login Successful")
-        message.display(stdscr)
-        stdscr.getch()
-        return username
-
-def view_files(stdscr):
-    """Show file list"""
-    file_list = SimpleFileList(DEMO_FILES, "VoidLink Files")
-    
-    while True:
-        file_list.display(stdscr)
-        key = stdscr.getch()
-        
-        if key == ord('q'):
-            return
-        
-        position = file_list.handle_input(key)
-        
-        if key == 10:  # Enter key
-            selected_file = DEMO_FILES[position]
-            result = show_file_actions(stdscr, selected_file)
-            if result == "EXIT":
-                return "EXIT"
-
-def show_file_actions(stdscr, file):
-    """Show actions for a selected file"""
-    menu_items = [
-        f"Download {file['name']}",
-        f"Share {file['name']}",
-        f"Delete {file['name']}",
-        f"View Properties",
-        "Back"
-    ]
-    
-    menu = SimpleMenu(menu_items, f"File: {file['name']}")
-    
-    while True:
-        menu.display(stdscr)
-        key = stdscr.getch()
-        
-        if key == ord('q'):
-            return
-        
-        position = menu.handle_input(key)
-        
-        if key == 10:  # Enter key
-            if position == 0:  # Download
-                download_selected_file(stdscr, file)
-            elif position == 1:  # Share
-                share_selected_file(stdscr, file)
-            elif position == 2:  # Delete
-                if delete_selected_file(stdscr, file):
-                    return  # File was deleted, go back to file list
-            elif position == 3:  # Properties
-                show_file_properties(stdscr, file)
-            elif position == 4:  # Back
-                return
-
-def download_selected_file(stdscr, file):
-    """Download a file"""
-    message = SimpleMessage(f"Downloading {file['name']}...\n\nSize: {file['size']}\nType: {file['type']}", "Download")
-    message.display(stdscr)
-    
-    # Simulate download
-    for i in range(10):
-        try:
-            stdscr.addstr(10, 4, f"Progress: {i*10}%")
-            stdscr.refresh()
-            time.sleep(0.2)
-        except curses.error:
-            pass
-    
-    # Show completion message
-    message = SimpleMessage(f"File {file['name']} downloaded successfully.", "Download Complete")
-    message.display(stdscr)
-    stdscr.getch()
-
-def share_selected_file(stdscr, file):
-    """Share a file"""
-    recipient_input = SimpleInput("Enter recipient email:", "Share File")
-    recipient = recipient_input.get_input(stdscr)
-    
-    if recipient is None:
-        return
-    
-    # Generate a share link
-    share_link = f"https://voidlink.example.com/share/{hash(file['name'] + recipient) % 1000000:06d}"
-    
-    # Show success message
-    message = SimpleMessage(f"File {file['name']} shared with {recipient}.\n\nShare link:\n{share_link}", "File Shared")
-    message.display(stdscr)
-    stdscr.getch()
-
-def delete_selected_file(stdscr, file):
-    """Delete a file"""
-    message = SimpleMessage(f"Are you sure you want to delete {file['name']}?\n\nPress 'y' to confirm, any other key to cancel.", "Confirm Delete")
-    message.display(stdscr)
-    
-    key = stdscr.getch()
-    if key == ord('y'):
-        # Remove file from list
-        global DEMO_FILES
-        DEMO_FILES = [f for f in DEMO_FILES if f['name'] != file['name']]
-        
-        # Show success message
-        message = SimpleMessage(f"File {file['name']} deleted successfully.", "File Deleted")
-        message.display(stdscr)
-        stdscr.getch()
-        return True
-    
-    return False
-
-def show_file_properties(stdscr, file):
-    """Show file properties"""
-    properties = f"Name: {file['name']}\n"
-    properties += f"Size: {file['size']}\n"
-    properties += f"Date: {file['date']}\n"
-    properties += f"Type: {file['type']}\n"
-    
-    message = SimpleMessage(properties, "File Properties")
-    message.display(stdscr)
-    stdscr.getch()
-
-def upload_file(stdscr):
-    """Upload a file"""
-    filename_input = SimpleInput("Enter file name:", "Upload File")
-    filename = filename_input.get_input(stdscr)
-    
-    if filename is None:
-        return
-    
-    size_input = SimpleInput("Enter file size (KB):", "Upload File")
-    size_str = size_input.get_input(stdscr)
-    
-    if size_str is None:
-        return
-    
-    try:
-        size = int(size_str)
-    except ValueError:
-        message = SimpleMessage("Invalid size. Please enter a number.", "Error")
-        message.display(stdscr)
-        stdscr.getch()
-        return
-    
-    # Determine file type based on extension
-    ext = os.path.splitext(filename.lower())[1]
-    file_type = "Other"
-    
-    if ext in ['.pdf']:
-        file_type = "PDF"
-    elif ext in ['.jpg', '.jpeg', '.png', '.gif']:
-        file_type = "Image"
-    elif ext in ['.doc', '.docx', '.txt']:
-        file_type = "Document"
-    elif ext in ['.xls', '.xlsx']:
-        file_type = "Spreadsheet"
-    elif ext in ['.ppt', '.pptx']:
-        file_type = "Presentation"
-    elif ext in ['.zip', '.rar', '.tar', '.gz']:
-        file_type = "Archive"
-    
-    # Format size
-    if size < 1024:
-        size_str = f"{size} KB"
-    else:
-        size_str = f"{size/1024:.1f} MB"
-    
-    # Show upload progress
-    message = SimpleMessage(f"Uploading {filename}...\n\nSize: {size_str}\nType: {file_type}", "Upload")
-    message.display(stdscr)
-    
-    # Simulate upload
-    for i in range(10):
-        try:
-            stdscr.addstr(10, 4, f"Progress: {i*10}%")
-            stdscr.refresh()
-            time.sleep(0.2)
-        except curses.error:
-            pass
-    
-    # Add to file list
-    global DEMO_FILES
-    DEMO_FILES.append({
-        "name": filename,
-        "size": size_str,
-        "date": time.strftime("%Y-%m-%d"),
-        "type": file_type
-    })
-    
-    # Show completion message
-    message = SimpleMessage(f"File {filename} uploaded successfully.", "Upload Complete")
-    message.display(stdscr)
-    stdscr.getch()
-
-def download_file(stdscr):
-    """Download a file from the list"""
-    file_list = SimpleFileList(DEMO_FILES, "Select File to Download")
-    
-    while True:
-        file_list.display(stdscr)
-        key = stdscr.getch()
-        
-        if key == ord('q'):
-            return
-        
-        position = file_list.handle_input(key)
-        
-        if key == 10:  # Enter key
-            selected_file = DEMO_FILES[position]
-            download_selected_file(stdscr, selected_file)
-            return
-
-def share_file(stdscr):
-    """Share a file from the list"""
-    file_list = SimpleFileList(DEMO_FILES, "Select File to Share")
-    
-    while True:
-        file_list.display(stdscr)
-        key = stdscr.getch()
-        
-        if key == ord('q'):
-            return
-        
-        position = file_list.handle_input(key)
-        
-        if key == 10:  # Enter key
-            selected_file = DEMO_FILES[position]
-            share_selected_file(stdscr, selected_file)
-            return
-
-def show_settings(stdscr):
-    """Show settings menu"""
-    menu_items = [
-        "Change Password",
-        "Security Settings",
-        "Network Settings",
-        "Back"
-    ]
-    
-    menu = SimpleMenu(menu_items, "Settings")
-    
-    while True:
-        menu.display(stdscr)
-        key = stdscr.getch()
-        
-        if key == ord('q'):
-            return
-        
-        position = menu.handle_input(key)
-        
-        if key == 10:  # Enter key
-            if position == 0:  # Change Password
-                change_password(stdscr)
-            elif position == 1:  # Security Settings
-                show_security_settings(stdscr)
-            elif position == 2:  # Network Settings
-                show_network_settings(stdscr)
-            elif position == 3:  # Back
-                return
-
-def change_password(stdscr):
-    """Change user password"""
-    current_input = SimpleInput("Enter current password:", "Change Password")
-    current = current_input.get_input(stdscr)
-    
-    if current is None:
-        return
-    
-    new_input = SimpleInput("Enter new password:", "Change Password")
-    new = new_input.get_input(stdscr)
-    
-    if new is None:
-        return
-    
-    confirm_input = SimpleInput("Confirm new password:", "Change Password")
-    confirm = confirm_input.get_input(stdscr)
-    
-    if confirm is None:
-        return
-    
-    if new != confirm:
-        message = SimpleMessage("New passwords do not match.", "Error")
-        message.display(stdscr)
-        stdscr.getch()
-        return
-    
-    # Show success message (demo mode)
-    message = SimpleMessage("Password changed successfully.", "Success")
-    message.display(stdscr)
-    stdscr.getch()
-
-def show_security_settings(stdscr):
-    """Show security settings"""
-    settings = "Two-Factor Authentication: Disabled\n\n"
-    settings += "File Encryption: Enabled\n\n"
-    settings += "Auto-Logout: 30 minutes\n\n"
-    settings += "Virus Scanning: Enabled"
-    
-    message = SimpleMessage(settings, "Security Settings")
-    message.display(stdscr)
-    stdscr.getch()
-
-def show_network_settings(stdscr):
-    """Show network settings"""
-    settings = "Server Address: localhost\n\n"
-    settings += "Port: 8000\n\n"
-    settings += "Connection Type: Secure\n\n"
-    settings += "Bandwidth Limit: None"
-    
-    message = SimpleMessage(settings, "Network Settings")
-    message.display(stdscr)
-    stdscr.getch()
-
-def show_about(stdscr):
-    """Show about information"""
-    about = f"VoidLink v{VERSION}\n\n"
-    about += "A secure file sharing application\n\n"
-    about += "Features:\n"
-    about += "- End-to-end encryption\n"
-    about += "- Virus scanning\n"
-    about += "- Resumable file transfers\n"
-    about += "- Secure authentication\n\n"
-    
-    if VOIDLINK_MODULES_LOADED:
-        about += "Running with VoidLink core modules"
-    else:
-        about += "Running in demo mode"
-    
-    message = SimpleMessage(about, "About VoidLink")
-    message.display(stdscr)
-    stdscr.getch()
-
-def main(stdscr):
-    """Main function"""
-    # Initialize curses
-    curses.curs_set(0)  # Hide cursor
-    stdscr.clear()
-    
-    # Set up colors if available
-    if curses.has_colors():
+    def init_curses(self):
+        """Initialize curses"""
+        self.screen = curses.initscr()
         curses.start_color()
         curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
-        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)
+        curses.curs_set(0)
+        curses.noecho()
+        curses.cbreak()
+        self.screen.keypad(True)
+        self.screen.bkgd(curses.color_pair(1))
     
-    # Show splash screen
-    h, w = stdscr.getmaxyx()
-    try:
-        stdscr.addstr(h//2-2, (w-10)//2, "VoidLink", curses.A_BOLD)
-        stdscr.addstr(h//2, (w-22)//2, "Secure File Sharing")
-        stdscr.addstr(h//2+2, (w-26)//2, "Press any key to continue")
-        stdscr.refresh()
-    except curses.error:
-        pass
+    def cleanup_curses(self):
+        """Clean up curses"""
+        curses.nocbreak()
+        self.screen.keypad(False)
+        curses.echo()
+        curses.endwin()
     
-    stdscr.getch()
+    def draw_header(self):
+        """Draw the header"""
+        height, width = self.screen.getmaxyx()
+        header = f"VoidLink v{VERSION}"
+        if self.username:
+            header += f" - Logged in as {self.username}"
+        
+        self.screen.addstr(0, 0, header.center(width))
+        self.screen.hline(1, 0, curses.ACS_HLINE, width)
     
-    # Show main menu
-    result = show_main_menu(stdscr)
+    def draw_footer(self):
+        """Draw the footer"""
+        height, width = self.screen.getmaxyx()
+        footer = "Press 'q' to quit"
+        
+        self.screen.hline(height - 2, 0, curses.ACS_HLINE, width)
+        self.screen.addstr(height - 1, 0, footer.center(width))
     
-    # Exit message
-    if result == "EXIT":
+    def show_message(self, title, message):
+        """Show a message dialog"""
+        height, width = self.screen.getmaxyx()
+        dialog = SimpleDialog(title, message)
+        dialog.init_window(10, 40, (height - 10) // 2, (width - 40) // 2)
+        dialog.display()
+        dialog.wait_for_key()
+        dialog.hide()
+    
+    def show_login_form(self):
+        """Show the login form"""
+        height, width = self.screen.getmaxyx()
+        form = SimpleForm(["Username:", "Password:"], "Login")
+        form.init_window(8, 40, (height - 8) // 2, (width - 40) // 2)
+        
+        while True:
+            form.display()
+            key = form.window.getch()
+            
+            if key == 27:  # Esc
+                form.hide()
+                return None, None
+            elif key == curses.KEY_F10:
+                form.hide()
+                return form.values[0], form.values[1]
+            elif key == 10:  # Enter
+                form.edit_field()
+            else:
+                form.navigate(key)
+    
+    def show_main_menu(self):
+        """Show the main menu"""
+        height, width = self.screen.getmaxyx()
+        menu_items = [
+            "Login",
+            "Exit"
+        ]
+        
+        menu = SimpleMenu(menu_items, "Main Menu")
+        menu.init_window(len(menu_items) + 2, 20, (height - len(menu_items) - 2) // 2, (width - 20) // 2)
+        
+        while True:
+            menu.display()
+            key = menu.window.getch()
+            
+            if key == 27:  # Esc
+                menu.hide()
+                return None
+            elif key == 10:  # Enter
+                menu.hide()
+                return menu.position
+            else:
+                menu.navigate(key)
+    
+    def show_user_menu(self):
+        """Show the user menu"""
+        height, width = self.screen.getmaxyx()
+        menu_items = [
+            "List Files",
+            "Upload File",
+            "Download File",
+            "Share File",
+            "Delete File",
+            "Logout"
+        ]
+        
+        menu = SimpleMenu(menu_items, "User Menu")
+        menu.init_window(len(menu_items) + 2, 20, (height - len(menu_items) - 2) // 2, (width - 20) // 2)
+        
+        while True:
+            menu.display()
+            key = menu.window.getch()
+            
+            if key == 27:  # Esc
+                menu.hide()
+                return None
+            elif key == 10:  # Enter
+                menu.hide()
+                return menu.position
+            else:
+                menu.navigate(key)
+    
+    def show_file_list(self):
+        """Show the file list"""
+        height, width = self.screen.getmaxyx()
+        
+        # Get files
+        if VOIDLINK_MODULES_LOADED:
+            try:
+                files = file_transfer.get_file_list(self.username)
+                if not files:
+                    self.show_message("Files", "No files found.")
+                    return None
+                
+                headers = ["Name", "Size", "Date", "Type"]
+                data = [[f["name"], f["size"], f["date"], f["type"]] for f in files]
+            except Exception as e:
+                self.show_message("Error", f"Error listing files: {str(e)}")
+                return None
+        else:
+            # Demo mode
+            headers = ["Name", "Size", "Date", "Type"]
+            data = [[f["name"], f["size"], f["date"], f["type"]] for f in DEMO_FILES]
+        
+        table = SimpleTable(headers, data, "Files")
+        table.init_window(min(len(data) + 5, height - 4), width - 4, 2, 2)
+        
+        while True:
+            table.display()
+            key = table.window.getch()
+            
+            if key == 27:  # Esc
+                table.hide()
+                return None
+            elif key == 10:  # Enter
+                table.hide()
+                return table.position
+            else:
+                table.navigate(key)
+    
+    def login(self):
+        """Log in to the system"""
+        username, password = self.show_login_form()
+        if not username or not password:
+            return False
+        
+        # Authenticate
+        if VOIDLINK_MODULES_LOADED:
+            try:
+                success = authentication.authenticate_user(username, password)
+                if success:
+                    self.username = username
+                    self.show_message("Login", f"Welcome, {username}!")
+                    return True
+                else:
+                    self.show_message("Login Failed", "Invalid username or password.")
+                    return False
+            except Exception as e:
+                self.show_message("Error", f"Authentication error: {str(e)}")
+                return False
+        else:
+            # Demo mode
+            if username == "admin" and password == "admin123":
+                self.username = username
+                self.show_message("Login", f"Welcome, {username}!")
+                return True
+            elif username == "user" and password == "user123":
+                self.username = username
+                self.show_message("Login", f"Welcome, {username}!")
+                return True
+            elif username == "demo" and password == "password":
+                self.username = username
+                self.show_message("Login", f"Welcome, {username}!")
+                return True
+            else:
+                self.show_message("Login Failed", "Invalid username or password.")
+                return False
+    
+    def logout(self):
+        """Log out of the system"""
+        self.username = None
+        self.show_message("Logout", "You have been logged out.")
+    
+    def run(self):
+        """Run the TUI"""
         try:
-            stdscr.clear()
-            stdscr.addstr(h//2, (w-18)//2, "Thanks for using")
-            stdscr.addstr(h//2+1, (w-10)//2, "VoidLink!")
-            stdscr.refresh()
-            time.sleep(1)
-        except curses.error:
-            pass
+            self.init_curses()
+            
+            while self.running:
+                self.screen.clear()
+                self.draw_header()
+                self.draw_footer()
+                self.screen.refresh()
+                
+                if not self.username:
+                    # Show main menu
+                    choice = self.show_main_menu()
+                    if choice == 0:  # Login
+                        self.login()
+                    elif choice == 1:  # Exit
+                        self.running = False
+                else:
+                    # Show user menu
+                    choice = self.show_user_menu()
+                    if choice == 0:  # List Files
+                        self.show_file_list()
+                    elif choice == 1:  # Upload File
+                        self.show_message("Upload File", "This feature is not implemented in the simple TUI.")
+                    elif choice == 2:  # Download File
+                        self.show_message("Download File", "This feature is not implemented in the simple TUI.")
+                    elif choice == 3:  # Share File
+                        self.show_message("Share File", "This feature is not implemented in the simple TUI.")
+                    elif choice == 4:  # Delete File
+                        self.show_message("Delete File", "This feature is not implemented in the simple TUI.")
+                    elif choice == 5:  # Logout
+                        self.logout()
+        
+        except Exception as e:
+            self.cleanup_curses()
+            print(f"Error: {str(e)}")
+            return 1
+        
+        finally:
+            self.cleanup_curses()
+        
+        return 0
+
+def main():
+    """Main function"""
+    tui = SimpleTUI()
+    return tui.run()
 
 if __name__ == "__main__":
-    try:
-        curses.wrapper(main)
-    except KeyboardInterrupt:
-        print("VoidLink TUI terminated by user")
-    except Exception as e:
-        print(f"Error: {str(e)}")
+    sys.exit(main())
