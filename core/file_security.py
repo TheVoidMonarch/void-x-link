@@ -151,10 +151,10 @@ def scan_file(file_path: str, filename: str, file_size: int) -> Dict:
 
     # If file passed basic checks, scan for viruses
     if results["is_safe"]:
-        # Scan for viruses if ClamAV is available
-        is_clean, virus_name = scan_file_for_viruses(file_path)
-
+        # Check if ClamAV is available first
         if is_clamd_available():
+            # Scan for viruses if ClamAV is available
+            is_clean, virus_name = scan_file_for_viruses(file_path)
             results["virus_scan"] = "PASSED" if is_clean else "FAILED"
 
             if not is_clean:
