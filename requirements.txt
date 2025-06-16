@@ -1,6 +1,6 @@
 pycryptodome>=3.15.0
 cryptography>=37.0.0
-requests>=2.28.0
+requests>=2.32.4
 python-dotenv>=0.20.0
 windows-curses>=2.3.0; sys_platform == 'win32'
 tqdm>=4.64.0
