@@ -1,8 +1,0 @@
-2025-03-15 22:30:45,333 - voidlink - WARNING - ClamAV not available: Error 61 connecting localhost:3310. Connection refused.
-2025-03-15 22:30:45,334 - voidlink - WARNING - ClamAV is not available, virus scanning will be skipped
-2025-03-15 23:37:31,815 - voidlink - WARNING - ClamAV not available: Error 61 connecting localhost:3310. Connection refused.
-2025-03-15 23:37:31,816 - voidlink - WARNING - ClamAV is not available, virus scanning will be skipped
-2025-03-15 23:37:33,528 - voidlink - WARNING - ClamAV not available: Error 61 connecting localhost:3310. Connection refused.
-2025-03-15 23:37:33,528 - voidlink - WARNING - ClamAV is not available, virus scanning will be skipped
-2025-03-15 23:37:34,102 - voidlink - WARNING - ClamAV not available: Error 61 connecting localhost:3310. Connection refused.
-2025-03-15 23:37:34,102 - voidlink - WARNING - ClamAV is not available, virus scanning will be skipped
