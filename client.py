@@ -15,6 +15,16 @@ import time
 import traceback
 from getpass import getpass
 
+# Add current directory to path to ensure modules can be found
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+# Try to import device_id module
+try:
+    from core.device_id import get_device_id
+    DEVICE_ID_AVAILABLE = True
+except ImportError:
+    DEVICE_ID_AVAILABLE = False
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,  # Set to DEBUG for more detailed logs
@@ -24,17 +34,26 @@ logger = logging.getLogger('voidlink_client')
 
 # Try to import encryption module
 try:
-    import fixed_encryption as encryption
-    ENCRYPTION_AVAILABLE = True
-    logger.info("Encryption module loaded successfully")
-except ImportError:
+    # Add current directory to path to ensure modules can be found
+    sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+    # Try to import encryption modules with proper path
     try:
-        import simple_encryption as encryption
+        import fixed_encryption as encryption
         ENCRYPTION_AVAILABLE = True
         logger.info("Encryption module loaded successfully")
     except ImportError:
-        ENCRYPTION_AVAILABLE = False
-        logger.warning("Encryption module not available, data will be sent unencrypted")
+        try:
+            import simple_encryption as encryption
+            ENCRYPTION_AVAILABLE = True
+            logger.info("Encryption module loaded successfully")
+        except ImportError:
+            ENCRYPTION_AVAILABLE = False
+            logger.warning("Encryption module not available, data will be sent unencrypted")
+except Exception as e:
+    logger.error(f"Error setting up encryption: {e}")
+    ENCRYPTION_AVAILABLE = False
+    logger.warning("Encryption module not available, data will be sent unencrypted")
 
 # Constants
 DEFAULT_HOST = 'localhost'
@@ -121,9 +140,16 @@ class VoidLinkClient:
                 # Try to decrypt if encryption is available
                 if ENCRYPTION_AVAILABLE:
                     try:
+                        # Check if it's already a JSON string
+                        if response_text.startswith('{') and response_text.endswith('}'):
+                            try:
+                                return json.loads(response_text)
+                            except json.JSONDecodeError:
+                                pass  # Not valid JSON, continue with decryption
+
                         decrypted_response = encryption.decrypt_message(response_text)
                         logger.debug(f"Decrypted response: {decrypted_response}")
-                        
+
                         # Return the decrypted response
                         return decrypted_response
                     except Exception as e:
@@ -147,30 +173,64 @@ class VoidLinkClient:
     def login(self, username, password):
         """Log in to the server"""
         try:
-            response = self.send_command("login", {
+            # Get device ID if available
+            device_id = None
+            if DEVICE_ID_AVAILABLE:
+                try:
+                    device_id = get_device_id()
+                    logger.info(f"Using device ID: {device_id}")
+                except Exception as e:
+                    logger.warning(f"Could not get device ID: {e}")
+
+            # Prepare login data
+            login_data = {
                 "username": username,
                 "password": password
-            })
-            
+            }
+
+            # Add device ID if available
+            if device_id:
+                login_data["device_id"] = device_id
+
+            # Send login command
+            response = self.send_command("login", login_data)
+
             if not response:
                 logger.error("No response from server during login")
                 return False
-            
+
             # Check if the response is a dictionary
             if not isinstance(response, dict):
                 logger.error(f"Invalid response type: {type(response)}")
                 return False
-            
+
             # Check if login was successful
             if response.get("status") == "success":
                 self.username = username
                 logger.info(f"Logged in as {username}")
+
+                # Check for device binding warnings
+                if response.get("device_binding") == "new":
+                    print("\nIMPORTANT: Your account has been created with permanent credentials.")
+                    print("Your username and password cannot be changed.")
+                    print("This account can be used on multiple devices.")
+                    print("Device ID:", device_id)
+                elif response.get("device_binding") == "added":
+                    print("\nINFO: This device has been registered to your account.")
+                    print("Device ID:", device_id)
+
                 return True
             else:
                 error = response.get("error", "Unknown error")
                 logger.error(f"Login failed: {error}")
+
+                # Handle specific error cases
+                if response.get("reason") == "device_id_required":
+                    print("\nERROR: Device ID is required for account creation.")
+                    print("Please update your client to the latest version.")
+
                 return False
-        
+
         except Exception as e:
             logger.error(f"Login error: {e}")
             logger.error(traceback.format_exc())

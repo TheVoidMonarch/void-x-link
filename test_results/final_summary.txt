@@ -1,7 +1,7 @@
 VoidLink Test Summary
 ====================
 
-Date: Sun Mar 16 00:54:58 +08 2025
+Date: Sun Mar 23 21:04:34 +08 2025
 
 Simple Tests:
 - Authentication: PASSED
@@ -9,11 +9,6 @@ Simple Tests:
 - File Security: PASSED
 
 Comprehensive Tests:
-- Comprehensive Tests: PASSED
-
-Overall Result: PASSED
-
-Coverage Report:
-- See test_results/coverage directory for detailed coverage report
+- Unit Tests: PASSED
 
 See test_results directory for detailed test results.

@@ -66,30 +66,45 @@ def verify_password(stored_password: str, provided_password: str) -> bool:
 
 
 def authenticate_user(username: str, password: str, device_id: str = None) -> bool:
-    """Authenticate a user with username and password"""
+    """
+    Authenticate a user with username and password
+
+    Implements permanent credentials with multi-device support:
+    - Username and password set on first login—no changes allowed
+    - Account can be used on multiple devices
+    - Each user can only have one account
+    """
     ensure_user_db()
 
     try:
         with open(USER_DB_FILE, "r") as user_db:
             users = json.load(user_db)
 
-        # If user doesn't exist and auto-registration is enabled, create the user
+        # If user doesn't exist, create the user (first-time registration)
         if username not in users:
-            log_info(f"Creating new user: {username}")
+            # Device ID is required for new account creation
+            if not device_id:
+                log_warning(f"Device ID required for new account creation: {username}")
+                raise AuthenticationError(
+                    "Device ID is required for new account creation", {
+                        "reason": "device_id_required"})
+
+            log_info(f"Creating new user with permanent credentials: {username}")
             # Create new user with bcrypt hashed password
             users[username] = {
                 "password": hash_password(password),
                 "role": "user",
                 "created_at": time.time(),
-                "device_ids": [device_id] if device_id else [],
+                "device_ids": [device_id],  # Store as a list to support multiple devices
                 "failed_attempts": 0,
-                "last_login": time.time()
+                "last_login": time.time(),
+                "permanent": True  # Flag indicating credentials cannot be changed
             }
 
             with open(USER_DB_FILE, "w") as user_db:
                 json.dump(users, user_db, indent=4)
 
-            log_info(f"New user created: {username}")
+            log_info(f"New user created with permanent credentials: {username}")
             return True
 
         # User exists, authenticate
@@ -114,11 +129,25 @@ def authenticate_user(username: str, password: str, device_id: str = None) -> bo
                     log_info(f"Upgrading password hash for user: {username}")
                     users[username]["password"] = hash_password(password)
 
-                # If device_id is provided, add it to the user's device list
+                # If this is a legacy account without the permanent flag, add it
+                if "permanent" not in users[username]:
+                    users[username]["permanent"] = True
+                    log_info(f"Upgraded account to permanent credentials: {username}")
+
+                # Handle device registration
                 if device_id:
+                    # Ensure device_ids exists
                     if "device_ids" not in users[username]:
                         users[username]["device_ids"] = []
 
+                    # Handle legacy accounts that might have device_id instead of device_ids
+                    if "device_id" in users[username] and users[username]["device_id"]:
+                        # Migrate to new format if not already in the list
+                        legacy_device = users[username]["device_id"]
+                        if legacy_device not in users[username]["device_ids"]:
+                            users[username]["device_ids"].append(legacy_device)
+
+                    # Register new device if not already registered
                     if device_id not in users[username]["device_ids"]:
                         users[username]["device_ids"].append(device_id)
                         log_info(f"New device registered for user {username}: {device_id}")
@@ -247,7 +276,12 @@ def list_users() -> List[Dict]:
 
 
 def change_password(username: str, new_password: str) -> bool:
-    """Change a user's password"""
+    """
+    Change a user's password
+
+    Note: For permanent accounts (created with the new registration system),
+    password changes are not allowed.
+    """
     ensure_user_db()
 
     try:
@@ -255,17 +289,29 @@ def change_password(username: str, new_password: str) -> bool:
             users = json.load(user_db)
 
         if username not in users:
+            log_warning(f"Attempted to change password for non-existent user: {username}")
             return False  # User doesn't exist
 
-        # Update password
+        # Check if this is a permanent account
+        if users[username].get("permanent", False):
+            log_warning(f"Attempted to change password for permanent account: {username}")
+            raise AuthenticationError(
+                "Password changes are not allowed for this account", {
+                    "reason": "permanent_credentials"})
+
+        # Update password for non-permanent accounts
         users[username]["password"] = hash_password(new_password)
 
         with open(USER_DB_FILE, "w") as user_db:
             json.dump(users, user_db, indent=4)
 
+        log_info(f"Password changed for user: {username}")
         return True
+    except AuthenticationError:
+        # Re-raise authentication errors to be handled by the caller
+        raise
     except Exception as e:
-        print(f"Error changing password: {str(e)}")
+        log_error(f"Error changing password: {str(e)}")
         return False
 
 
@@ -290,6 +336,38 @@ def change_role(username: str, new_role: str) -> bool:
     except Exception as e:
         print(f"Error changing role: {str(e)}")
         return False
+
+
+def user_exists(username: str) -> bool:
+    """Check if a user exists"""
+    ensure_user_db()
+
+    try:
+        with open(USER_DB_FILE, "r") as user_db:
+            users = json.load(user_db)
+
+        return username in users
+    except Exception as e:
+        log_error(f"Error checking if user exists: {str(e)}")
+        return False
+
+
+def get_user_info(username: str) -> Optional[Dict[str, Any]]:
+    """Get user information"""
+    ensure_user_db()
+
+    try:
+        with open(USER_DB_FILE, "r") as user_db:
+            users = json.load(user_db)
+
+        if username in users:
+            # Return a copy of the user info to prevent accidental modification
+            return dict(users[username])
+
+        return None
+    except Exception as e:
+        log_error(f"Error getting user info: {str(e)}")
+        return None
 
 
 # Initialize the user database

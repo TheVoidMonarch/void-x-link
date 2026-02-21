@@ -93,22 +93,41 @@ def encrypt_message(message: Union[str, dict, bytes]) -> str:
 def decrypt_message(encrypted_message: str) -> Any:
     """Decrypt a message"""
     try:
+        # Check if it's already a JSON string (unencrypted)
+        try:
+            if encrypted_message.startswith('{') and encrypted_message.endswith('}'):
+                return json.loads(encrypted_message)
+        except:
+            pass
+
         # Decode from base64
-        encrypted = base64.b64decode(encrypted_message)
-        
+        try:
+            encrypted = base64.b64decode(encrypted_message)
+        except Exception as e:
+            logger.error(f"Base64 decode error: {e}")
+            return {"status": "error", "error": f"Base64 decode error: {str(e)}"}
+
         # Decrypt data
-        decrypted = simple_decrypt(encrypted)
-        
+        try:
+            decrypted = simple_decrypt(encrypted)
+        except Exception as e:
+            logger.error(f"Decryption error: {e}")
+            return {"status": "error", "error": f"Decryption error: {str(e)}"}
+
         # Try to parse as JSON
         try:
             return json.loads(decrypted)
         except json.JSONDecodeError:
             # Not JSON, return as string
-            return decrypted.decode('utf-8')
-    
+            try:
+                return decrypted.decode('utf-8')
+            except UnicodeDecodeError:
+                # Not valid UTF-8, return as hex
+                return {"status": "error", "error": f"Invalid UTF-8 data: {decrypted.hex()}"}
+
     except Exception as e:
         logger.error(f"Decryption error: {e}")
-        raise
+        return {"status": "error", "error": f"Decryption error: {str(e)}"}
 
 # Initialize
 ensure_key_file()
